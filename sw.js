@@ -1,1 +1,12 @@
-const CACHE="star-go-v04";self.addEventListener("install",e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(["./","./index.html","./manifest.webmanifest"]))));self.addEventListener("fetch",e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));
+
+self.addEventListener("install", event => self.skipWaiting());
+self.addEventListener("activate", event => {
+  event.waitUntil((async()=>{
+    const keys = await caches.keys();
+    await Promise.all(keys.map(k=>caches.delete(k)));
+    await self.registration.unregister();
+    const clientsList = await self.clients.matchAll({type:"window"});
+    clientsList.forEach(c=>c.navigate(c.url));
+  })());
+});
+self.addEventListener("fetch", ()=>{});

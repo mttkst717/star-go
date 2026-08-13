@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>STAR GO v0.5</title>
+<title>STAR GO v0.6</title>
 <meta name="theme-color" content="#080d19">
 <style>
 body{margin:0;background:#080d19;color:#eef3ff;font-family:system-ui,-apple-system,sans-serif}
@@ -20,7 +20,7 @@ button{background:#91aaff;color:#08101e;font-weight:800;border:0}.secondary{back
 </head>
 <body><div class="wrap">
 <h1>📷 STAR GO <span class="muted">v0.5</span></h1>
-<p class="muted">まず「現在地」と「天気API」が確実に動くことを優先した安定版</p>
+<p class="muted">現在の天気＋今日の撮影条件をまとめてチェック</p>
 
 <div class="card"><h2>📍 撮影地点</h2>
 <div class="grid">
@@ -34,7 +34,7 @@ button{background:#91aaff;color:#08101e;font-weight:800;border:0}.secondary{back
 <p id="status" class="small muted">HTTPS上で開いている場合、現在地を取得できます。</p>
 </div>
 
-<div class="card"><h2>🔧 接続診断</h2>
+<div class="card"><h2>🌤️ 現在の天気</h2><div class="grid"><div class="metric">天気<div id="weatherNow" class="num">--</div></div><div class="metric">気温<div id="tempNow" class="num">--</div></div><div class="metric">湿度<div id="humidityNow" class="num">--</div></div><div class="metric">風<div id="windNow" class="num">--</div></div><div class="metric">雲量<div id="cloudNow" class="num">--</div></div><div class="metric">視程<div id="visibilityNow" class="num">--</div></div></div><div class="row"><span>📷 今すぐ撮影</span><b id="shootNow">--</b></div><p id="nowAdvice" class="small muted">現在の撮影条件を判定します。</p></div><div class="card"><h2>🔧 接続診断</h2>
 <div class="grid">
 <div class="metric">GPS<div id="gps" class="num">--</div></div>
 <div class="metric">天気API<div id="api" class="num">--</div></div>
@@ -133,7 +133,8 @@ async function getWeather(){
    const url="https://api.open-meteo.com/v1/forecast"+
      "?latitude="+encodeURIComponent(lat)+
      "&longitude="+encodeURIComponent(lon)+
-     "&hourly=cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,relative_humidity_2m,visibility"+
+     "&current=temperature_2m,relative_humidity_2m,weather_code,cloud_cover,wind_speed_10m,visibility"+
+"&hourly=cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,relative_humidity_2m,visibility"+
      "&timezone=auto"+
      "&start_date="+encodeURIComponent(date)+
      "&end_date="+encodeURIComponent(date);
@@ -154,8 +155,10 @@ async function getWeather(){
  }
 }
 
+function weatherLabel(c){if(c===0)return"☀️ 快晴";if(c<=2)return"🌤️ 晴れ";if(c===3)return"☁️ 曇り";if(c===45||c===48)return"🌫️ 霧";if([51,53,55,56,57].includes(c))return"🌦️ 霧雨";if([61,63,65,66,67,80,81,82].includes(c))return"🌧️ 雨";if([71,73,75,77,85,86].includes(c))return"🌨️ 雪";if(c>=95)return"⛈️ 雷雨";return"🌤️ 不明"}
+function renderCurrent(){const c=window.weather?.current;if(!c)return;$("weatherNow").textContent=weatherLabel(c.weather_code);$("tempNow").textContent=c.temperature_2m+"℃";$("humidityNow").textContent=c.relative_humidity_2m+"%";$("windNow").textContent=c.wind_speed_10m+" km/h";$("cloudNow").textContent=c.cloud_cover+"%";$("visibilityNow").textContent=Math.round((c.visibility||0)/1000)+" km";const clear=100-c.cloud_cover,vis=clamp((c.visibility||0)/25000*100),hum=clamp(100-Math.max(0,c.relative_humidity_2m-55)*1.8),wind=clamp(100-Math.max(0,c.wind_speed_10m-10)*3),s=clamp(.45*clear+.25*vis+.18*hum+.12*wind);$("shootNow").textContent=(s>=80?"◎ ":s>=60?"○ ":s>=40?"△ ":"× ")+Math.round(s);$("nowAdvice").textContent=s>=80?"今すぐでもかなり撮りやすい条件です。":s>=60?"今すぐ撮影も十分あり。":s>=40?"今は条件次第。狙い目時間も確認。":"今すぐは弱め。後の改善を狙いたい。"}
 function calc(){
- const w=window.weather;if(!w)return;
+ const w=window.weather;if(!w)return;renderCurrent();
  const m=moon($("date").value);
  $("age").textContent=m.age.toFixed(1);
  $("illum").textContent=Math.round(m.illum*100)+"%";

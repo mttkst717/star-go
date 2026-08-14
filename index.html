@@ -25,6 +25,16 @@
 details>summary{cursor:pointer;font-weight:800;font-size:18px;padding:8px 0}
 details[open]>summary{margin-bottom:8px}
 #otherPlacesContent>.card{margin:10px 0;background:#0d1627}
+
+/* v1.3.1 compact UI */
+#forecastStatusCard{padding:12px 16px}
+#forecastStatusCard h2{display:none}
+#forecastStatusBox{padding:8px 12px;display:flex;align-items:center;gap:10px;min-height:0}
+#forecastStatusTitle{font-size:14px!important;white-space:nowrap}
+#forecastStatusDetail{font-size:12px}
+#diagWrap{margin-top:6px}
+#diagWrap summary{font-size:12px;font-weight:600;color:#9eabc4;padding:3px 0}
+#diagWrap .small{padding:5px 0}
 </style>
 <script>(async function(){try{if("serviceWorker"in navigator){const r=await navigator.serviceWorker.getRegistrations();await Promise.all(r.map(x=>x.unregister()))}if("caches"in window){const k=await caches.keys();await Promise.all(k.map(x=>caches.delete(x)))}}catch(e){}})();</script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -45,11 +55,11 @@ details[open]>summary{margin-bottom:8px}
 </div></div>
 
 <div class="card" id="forecastStatusCard">
-<h2>☁️ 予報ステータス</h2>
 <div id="forecastStatusBox" class="metric statusInfo">
-<div id="forecastStatusTitle" class="num">確認中…</div>
+<div id="forecastStatusTitle" class="num">☁️ 予報：確認中</div>
 <div id="forecastStatusDetail" class="small muted"></div>
 </div>
+<details id="diagWrap"><summary>接続詳細</summary><div id="diagCompact" class="small muted">--</div></details>
 </div>
 
 <div class="card">
@@ -67,7 +77,7 @@ details[open]>summary{margin-bottom:8px}
 <div id="galacticTimeline" class="astroTable"></div>
 <p class="small muted">銀河中心（いて座A*付近）の高度・方位を天文計算で推定します。天気予報の有無に関係なく、未来の日付でも計算できます。</p>
 </div>
-<div class="card"><h2>🌤️ 現在の天気</h2><div class="grid"><div class="metric">天気<div id="weatherNow" class="num">--</div></div><div class="metric">気温<div id="tempNow" class="num">--</div></div><div class="metric">湿度<div id="humidityNow" class="num">--</div></div><div class="metric">風<div id="windNow" class="num">--</div></div><div class="metric">雲量<div id="cloudNow" class="num">--</div></div><div class="metric">降水<div id="rainNow" class="num">--</div></div></div><div class="row"><span>📷 今すぐ撮影</span><b id="shootNow">--</b></div><p id="nowAdvice" class="small muted">現在の撮影条件を判定します。</p></div>
+<div class="card"><h2>🌤️ 現在の天気</h2><div class="grid"><div class="metric">天気<div id="weatherNow" class="num">--</div></div><div class="metric">気温<div id="tempNow" class="num">--</div></div><div class="metric">湿度<div id="humidityNow" class="num">--</div></div><div class="metric">風<div id="windNow" class="num">--</div></div><div class="metric">雲量<div id="cloudNow" class="num">--</div></div><div class="metric">降水<div id="rainNow" class="num">--</div></div></div><div class="row"><span>📷 今すぐ撮影</span><b id="shootNow">-- / 100</b></div><p id="nowAdvice" class="small muted">現在の撮影条件を判定します。</p></div>
 <div class="card"><h2>🔧 接続診断</h2><div class="grid"><div class="metric">GPS<div id="gps" class="num">--</div></div><div class="metric">天気API<div id="api" class="num">--</div></div></div><p id="diag" class="small muted">エラーがあればここに表示します。</p></div>
 <div class="card"><div class="muted">🔥 今日ここへ行くべき度</div><div id="total" class="score">--</div><div id="verdict" class="badge">---</div><p id="summary" class="muted">---</p></div>
 <div class="card"><h2>🌌 星空・天の川</h2><div class="grid"><div class="metric">星空指数<div id="star" class="num">--</div></div><div class="metric">天の川期待度<div id="milky" class="num">--</div></div></div><div class="row"><span>低層雲</span><b id="lowT">--</b></div><div class="bar"><div id="lowB" class="fill"></div></div><div class="row"><span>中層雲</span><b id="midT">--</b></div><div class="bar"><div id="midB" class="fill"></div></div><div class="row"><span>高層雲</span><b id="highT">--</b></div><div class="bar"><div id="highB" class="fill"></div></div><div class="row"><span>視程</span><b id="visT">--</b></div><div class="row"><span>湿度</span><b id="humT">--</b></div><div class="row"><span>降水確率</span><b id="popT">--</b></div><p id="starReason" class="small muted">雨・厚い雲の時は指数に強い上限をかけます。</p></div>
@@ -116,7 +126,7 @@ details[open]>summary{margin-bottom:8px}
 </div>
 </div>
 <script>
-const APP_VERSION="v1.3.0";
+const APP_VERSION="v1.3.1";
 document.addEventListener("DOMContentLoaded",()=>{
   document.title="STAR GO "+APP_VERSION;
   const el=document.getElementById("appVersion");
@@ -273,6 +283,30 @@ function dayDiffFromToday(dateStr){
  const a=new Date(localDateString(new Date())+"T12:00:00"),b=new Date(dateStr+"T12:00:00");
  return Math.round((b-a)/86400000);
 }
+
+function syncCompactStatus(){
+ const d=$("diag"),dc=$("diagCompact");
+ if(d&&dc)dc.textContent=d.textContent||"--";
+ const t=$("forecastStatusTitle");
+ if(t){
+   const raw=t.textContent.replace(/^☁️\s*予報[:：]?\s*/,"");
+   t.textContent="☁️ 予報："+raw;
+ }
+ const s=$("shootNow");
+ if(s && s.textContent && s.textContent!=="--" && !s.textContent.includes("/ 100")){
+   const n=parseFloat(s.textContent);
+   if(Number.isFinite(n)){
+     const score=n<=10?Math.round(n*10):Math.round(n);
+     s.textContent=score+" / 100";
+   }
+ }
+}
+const compactObserver=new MutationObserver(syncCompactStatus);
+document.addEventListener("DOMContentLoaded",()=>{
+ ["diag","forecastStatusTitle","shootNow"].forEach(id=>{const e=$(id);if(e)compactObserver.observe(e,{childList:true,subtree:true,characterData:true})});
+ syncCompactStatus();
+});
+
 function setForecastStatus(kind,title,detail){
  const box=$("forecastStatusBox");
  box.className="metric "+(kind==="ok"?"statusInfo":kind==="range"?"statusWarn":"statusErr");
@@ -299,12 +333,12 @@ async function getWeather(){
  // requires selected date to leave room for the following morning.
  if(dd>14){
    $("api").textContent="期間外";
-   setForecastStatus("range","まだ天気予報がありません","選択日が先のため予報期間外です。月・薄明・天の川位置は計算済みです。");
+   setForecastStatus("range","予報期間外","天文情報のみ表示");
    setStatus("先の日付のため天気予報はまだありません。天文情報のみ表示します。","warn");
    clearWeatherOnly();
    return;
  }
- $("api").textContent="取得中";setForecastStatus("ok","天気予報を取得中…","");
+ $("api").textContent="取得中";setForecastStatus("ok","取得中…","");
  setStatus("☁️ 天気予報を取得しています…");
  try{
    const url="https://api.open-meteo.com/v1/forecast?latitude="+encodeURIComponent(lat)+"&longitude="+encodeURIComponent(lon)+
@@ -316,11 +350,11 @@ async function getWeather(){
    const json=JSON.parse(text);
    if(!json.hourly||!json.hourly.time)throw new Error("hourly data missing");
    window.weather=json;$("api").textContent="OK";$("diag").textContent="天気API取得成功。";
-   setForecastStatus("ok","天気予報を取得しました","天気＋天文情報を使っておすすめ度を計算します。");
+   setForecastStatus("ok","取得済み","天文情報も計算済み");
    setStatus("☁️ 予報を取得しました。","ok");render();
  }catch(e){
    $("api").textContent="NG";$("diag").textContent="APIエラー: "+e.message;
-   setForecastStatus("error","天気予報の取得エラー","通信またはAPIエラーです。天文情報は引き続き利用できます。");
+   setForecastStatus("error","取得エラー","天文情報は利用できます");
    setStatus("予報取得に失敗しました。天文情報のみ表示します。","err");
    clearWeatherOnly();
  }

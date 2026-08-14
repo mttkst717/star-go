@@ -26,7 +26,7 @@ details>summary{cursor:pointer;font-weight:800;font-size:18px;padding:8px 0}
 details[open]>summary{margin-bottom:8px}
 #otherPlacesContent>.card{margin:10px 0;background:#0d1627}
 
-/* v1.3.1 compact UI */
+/* v1.3.2 compact UI */
 #forecastStatusCard{padding:12px 16px}
 #forecastStatusCard h2{display:none}
 #forecastStatusBox{padding:8px 12px;display:flex;align-items:center;gap:10px;min-height:0}
@@ -126,7 +126,9 @@ details[open]>summary{margin-bottom:8px}
 </div>
 </div>
 <script>
-const APP_VERSION="v1.3.1";
+window.addEventListener("error",e=>{const d=document.getElementById("diagCompact");if(d)d.textContent="JSエラー: "+e.message;});
+window.addEventListener("unhandledrejection",e=>{const d=document.getElementById("diagCompact");if(d)d.textContent="Promiseエラー: "+(e.reason?.message||e.reason||"unknown");});
+const APP_VERSION="v1.3.2";
 document.addEventListener("DOMContentLoaded",()=>{
   document.title="STAR GO "+APP_VERSION;
   const el=document.getElementById("appVersion");
@@ -284,39 +286,17 @@ function dayDiffFromToday(dateStr){
  return Math.round((b-a)/86400000);
 }
 
-function syncCompactStatus(){
- const d=$("diag"),dc=$("diagCompact");
- if(d&&dc)dc.textContent=d.textContent||"--";
- const t=$("forecastStatusTitle");
- if(t){
-   const raw=t.textContent.replace(/^☁️\s*予報[:：]?\s*/,"");
-   t.textContent="☁️ 予報："+raw;
- }
- const s=$("shootNow");
- if(s && s.textContent && s.textContent!=="--" && !s.textContent.includes("/ 100")){
-   const n=parseFloat(s.textContent);
-   if(Number.isFinite(n)){
-     const score=n<=10?Math.round(n*10):Math.round(n);
-     s.textContent=score+" / 100";
-   }
- }
-}
-const compactObserver=new MutationObserver(syncCompactStatus);
-document.addEventListener("DOMContentLoaded",()=>{
- ["diag","forecastStatusTitle","shootNow"].forEach(id=>{const e=$(id);if(e)compactObserver.observe(e,{childList:true,subtree:true,characterData:true})});
- syncCompactStatus();
-});
-
 function setForecastStatus(kind,title,detail){
  const box=$("forecastStatusBox");
- box.className="metric "+(kind==="ok"?"statusInfo":kind==="range"?"statusWarn":"statusErr");
- $("forecastStatusTitle").textContent=title;$("forecastStatusDetail").textContent=detail||"";
+ if(box)box.className="metric "+(kind==="ok"?"statusInfo":kind==="range"?"statusWarn":"statusErr");
+ const t=$("forecastStatusTitle");if(t)t.textContent="☁️ 予報："+title;
+ const d=$("forecastStatusDetail");if(d)d.textContent=detail||"";
 }
 
 function moon(date){const ref=Date.UTC(2000,0,6,18,14),d=new Date(date+"T12:00:00").getTime();let age=((d-ref)/86400000)%29.530588853;if(age<0)age+=29.530588853;return{age,illum:(1-Math.cos(2*Math.PI*age/29.530588853))/2}}
 function weatherLabel(c){if(c===0)return"☀️ 快晴";if(c===1)return"🌤️ 晴れ";if(c===2)return"⛅ 薄曇り";if(c===3)return"☁️ 曇り";if(c===45||c===48)return"🌫️ 霧";if([51,53,55,56,57].includes(c))return"🌦️ 霧雨";if([61,63,65,66,67,80,81,82].includes(c))return"🌧️ 雨";if([71,73,75,77,85,86].includes(c))return"🌨️ 雪";if([95,96,99].includes(c))return"⛈️ 雷雨";return"🌤️ 不明"}
 function weatherCap(code,precip,pop,cloud){let cap=100,reason=[];if([95,96,99].includes(code)){cap=Math.min(cap,5);reason.push("雷雨")}else if([65,67,82].includes(code)||precip>=7){cap=Math.min(cap,5);reason.push("大雨")}else if([61,63,66,80,81].includes(code)||precip>=1){cap=Math.min(cap,12);reason.push("降雨")}else if([51,53,55,56,57].includes(code)){cap=Math.min(cap,18);reason.push("霧雨")}if(code===45||code===48){cap=Math.min(cap,15);reason.push("霧")}if(pop>=80){cap=Math.min(cap,15);reason.push("降水確率80%以上")}else if(pop>=60){cap=Math.min(cap,30);reason.push("降水確率60%以上")}if(cloud>=95){cap=Math.min(cap,10);reason.push("雲量95%以上")}else if(cloud>=85){cap=Math.min(cap,22);reason.push("雲量85%以上")}else if(cloud>=70){cap=Math.min(cap,45);reason.push("雲量70%以上")}return{cap,reason}}
-$("loc").onclick=()=>{$("gps").textContent="取得中";if(!window.isSecureContext){$("gps").textContent="NG";$("diag").textContent="HTTPSではありません。";return}navigator.geolocation.getCurrentPosition(p=>{$("lat").value=p.coords.latitude.toFixed(5);$("lon").value=p.coords.longitude.toFixed(5);$("place").value="現在地";$("gps").textContent="OK";$("diag").textContent="GPS取得成功。";setStatus("📍 現在地を取得しました。","ok");renderAstronomy();getWeather()},e=>{$("gps").textContent="NG";$("diag").textContent="GPS error code: "+e.code;setStatus("位置情報を取得できませんでした。","warn")},{enableHighAccuracy:true,timeout:15000,maximumAge:300000})};
+$("loc").onclick=()=>{$("gps").textContent="取得中";if(!window.isSecureContext){$("gps").textContent="NG";$("diag").textContent="HTTPSではありません。";return}navigator.geolocation.getCurrentPosition(p=>{$("lat").value=p.coords.latitude.toFixed(5);$("lon").value=p.coords.longitude.toFixed(5);$("place").value="現在地";$("gps").textContent="OK";$("diag").textContent="GPS取得成功。";if($("diagCompact"))$("diagCompact").textContent=$("diag").textContent;setStatus("📍 現在地を取得しました。","ok");renderAstronomy();getWeather()},e=>{$("gps").textContent="NG";$("diag").textContent="GPS error code: "+e.code;if($("diagCompact"))$("diagCompact").textContent=$("diag").textContent;setStatus("位置情報を取得できませんでした。","warn")},{enableHighAccuracy:true,timeout:15000,maximumAge:300000})};
 $("load").onclick=getWeather;
 async function getWeather(){
  const lat=Number($("lat").value),lon=Number($("lon").value),date=$("date").value;
@@ -349,11 +329,11 @@ async function getWeather(){
    if(!res.ok)throw new Error("HTTP "+res.status+" "+text.slice(0,120));
    const json=JSON.parse(text);
    if(!json.hourly||!json.hourly.time)throw new Error("hourly data missing");
-   window.weather=json;$("api").textContent="OK";$("diag").textContent="天気API取得成功。";
+   window.weather=json;$("api").textContent="OK";$("diag").textContent="天気API取得成功。";if($("diagCompact"))$("diagCompact").textContent=$("diag").textContent;
    setForecastStatus("ok","取得済み","天文情報も計算済み");
    setStatus("☁️ 予報を取得しました。","ok");render();
  }catch(e){
-   $("api").textContent="NG";$("diag").textContent="APIエラー: "+e.message;
+   $("api").textContent="NG";$("diag").textContent="APIエラー: "+e.message;if($("diagCompact"))$("diagCompact").textContent=$("diag").textContent;
    setForecastStatus("error","取得エラー","天文情報は利用できます");
    setStatus("予報取得に失敗しました。天文情報のみ表示します。","err");
    clearWeatherOnly();
@@ -367,7 +347,7 @@ function clearWeatherOnly(){
  $("best").textContent="天文情報を参考に撮影計画を立てられます。";
  const c=$("scoreGraph");if(c){const ctx=c.getContext("2d");ctx.clearRect(0,0,c.width,c.height);}
 }
-function renderCurrent(){const c=window.weather?.current;if(!c)return;$("weatherNow").textContent=weatherLabel(c.weather_code);$("tempNow").textContent=c.temperature_2m+"℃";$("humidityNow").textContent=c.relative_humidity_2m+"%";$("windNow").textContent=c.wind_speed_10m+" km/h";$("cloudNow").textContent=c.cloud_cover+"%";$("rainNow").textContent=c.precipitation+" mm";const base=.55*(100-c.cloud_cover)+.20*clamp((c.visibility||0)/25000*100)+.15*clamp(100-Math.max(0,c.relative_humidity_2m-55)*1.8)+.10*clamp(100-Math.max(0,c.wind_speed_10m-10)*3),wc=weatherCap(c.weather_code,c.precipitation||0,0,c.cloud_cover||0),s=Math.min(base,wc.cap);$("shootNow").textContent=(s>=80?"◎ ":s>=60?"○ ":s>=40?"△ ":"× ")+Math.round(s);$("nowAdvice").textContent=wc.cap<50?"今すぐは撮影非推奨："+wc.reason.join("・"):s>=70?"今すぐ撮影も十分あり。":"今は条件次第。"}
+function renderCurrent(){const c=window.weather?.current;if(!c)return;$("weatherNow").textContent=weatherLabel(c.weather_code);$("tempNow").textContent=c.temperature_2m+"℃";$("humidityNow").textContent=c.relative_humidity_2m+"%";$("windNow").textContent=c.wind_speed_10m+" km/h";$("cloudNow").textContent=c.cloud_cover+"%";$("rainNow").textContent=c.precipitation+" mm";const base=.55*(100-c.cloud_cover)+.20*clamp((c.visibility||0)/25000*100)+.15*clamp(100-Math.max(0,c.relative_humidity_2m-55)*1.8)+.10*clamp(100-Math.max(0,c.wind_speed_10m-10)*3),wc=weatherCap(c.weather_code,c.precipitation||0,0,c.cloud_cover||0),s=Math.min(base,wc.cap);$("shootNow").textContent=(s>=80?"◎ ":s>=60?"○ ":s>=40?"△ ":"× ")+Math.round(s)+" / 100";$("nowAdvice").textContent=wc.cap<50?"今すぐは撮影非推奨："+wc.reason.join("・"):s>=70?"今すぐ撮影も十分あり。":"今は条件次第。"}
 function hourlyScore(i,m){const w=window.weather.hourly,c=w.cloud_cover[i]??100,lo=w.cloud_cover_low[i]??c,md=w.cloud_cover_mid[i]??c,hi=w.cloud_cover_high[i]??c,hum=w.relative_humidity_2m[i]??100,vis=(w.visibility[i]??0)/1000,pop=w.precipitation_probability[i]??0,pr=w.precipitation[i]??0,code=w.weather_code[i]??3,clear=100-(.50*c+.25*lo+.15*md+.10*hi),visibility=clamp(vis/25*100),humidity=clamp(100-Math.max(0,hum-55)*1.8);let star=.45*clear+.20*(100-m.illum*55)+.20*visibility+.15*humidity;const wc=weatherCap(code,pr,pop,c);star=Math.min(clamp(star),wc.cap);const hour=new Date(w.time[i]).getHours();
    const nightFactor=(hour>=21||hour<=4)?1:(hour>=19||hour<=6?0.45:0.08);
    let milky=star*(1-m.illum*.92)*nightFactor;
@@ -539,5 +519,10 @@ window.addEventListener("resize",()=>{
 getWeather();
 };
 
-moveOtherPlacesToBottom();renderAstronomy();getWeather();
+if(!window.__STAR_GO_BOOTED__){
+ window.__STAR_GO_BOOTED__=true;
+ moveOtherPlacesToBottom();
+ renderAstronomy();
+ getWeather();
+}
 </script></body></html>

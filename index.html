@@ -1,226 +1,32 @@
-<!doctype html>
-<html lang="ja">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>STAR GO v0.7.2</title>
-<meta name="theme-color" content="#080d19">
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#080d19"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><title>STAR GO v0.8</title>
 <style>
-body{margin:0;background:#080d19;color:#eef3ff;font-family:system-ui,-apple-system,sans-serif}
-.wrap{max-width:820px;margin:auto;padding:18px}.card{background:#121b2e;border:1px solid #293753;border-radius:18px;padding:18px;margin:12px 0}
-h1,h2{margin:0 0 8px}.muted{color:#9eabc4}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-input,button{width:100%;box-sizing:border-box;padding:11px;margin-top:7px;border-radius:10px;border:1px solid #35445f;background:#0c1424;color:#fff}
-button{background:#91aaff;color:#08101e;font-weight:800;border:0}.secondary{background:#263653;color:#fff}
-.score{font-size:64px;font-weight:900}.badge{display:inline-block;background:#263653;border-radius:999px;padding:7px 12px}
-.metric{background:#0c1424;border-radius:12px;padding:12px}.num{font-size:26px;font-weight:800}.row{display:flex;justify-content:space-between;margin:9px 0}
-.bar{height:9px;background:#28344d;border-radius:8px;overflow:hidden}.fill{height:100%;background:#91aaff}
-.chart{height:210px;display:flex;align-items:flex-end;gap:3px}.col{flex:1;background:#91aaff;min-width:4px;position:relative;border-radius:4px 4px 0 0}.col span{position:absolute;bottom:-18px;font-size:9px}
-.small{font-size:13px}.ok{color:#b8ffc8}.warn{color:#ffe09b}.err{color:#ff9f9f}
+*{box-sizing:border-box}body{margin:0;background:#080d19;color:#eef3ff;font-family:system-ui,-apple-system,sans-serif}.wrap{max-width:860px;margin:auto;padding:18px}.card{background:#121b2e;border:1px solid #293753;border-radius:18px;padding:18px;margin:12px 0}h1,h2{margin:0 0 8px}.muted{color:#9eabc4}.small{font-size:13px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}input,button{width:100%;padding:11px;margin-top:6px;border-radius:10px;border:1px solid #35445f;background:#0c1424;color:#fff}button{background:#91aaff;color:#08101e;font-weight:800;border:0}.secondary{background:#263653;color:#fff}.score{font-size:64px;font-weight:900}.badge{display:inline-block;background:#263653;border-radius:999px;padding:7px 12px}.metric{background:#0c1424;border-radius:12px;padding:12px}.num{font-size:26px;font-weight:800}.row{display:flex;justify-content:space-between;gap:12px;margin:9px 0}.bar{height:9px;background:#28344d;border-radius:8px;overflow:hidden}.fill{height:100%;background:#91aaff}.ok{color:#b8ffc8}.warn{color:#ffe09b}.err{color:#ff9f9f}.rank{padding:8px 0;border-bottom:1px solid #25324a}.rank:last-child{border-bottom:0}@media(max-width:560px){.grid{grid-template-columns:1fr 1fr}.score{font-size:50px}}
 </style>
-
+<script>(async function(){try{if("serviceWorker"in navigator){const r=await navigator.serviceWorker.getRegistrations();await Promise.all(r.map(x=>x.unregister()))}if("caches"in window){const k=await caches.keys();await Promise.all(k.map(x=>caches.delete(x)))}}catch(e){}})();</script>
+</head><body><div class="wrap">
+<h1>📷 STAR GO <span class="muted">v0.8</span></h1><p class="muted">雨・雲・月をちゃんと反映する撮影コンディション判定版</p>
+<div class="card"><h2>📍 撮影地点</h2><div class="grid"><div>緯度<input id="lat" value="35.4437"></div><div>経度<input id="lon" value="139.6380"></div><div>日付<input id="date" type="date"></div><div>地点名<input id="place" value="臨港パーク"></div></div><button id="loc">📍 現在地を取得</button><button id="load" class="secondary">☁️ 予報を取得</button><p id="status" class="small muted">HTTPS上で開けば現在地を取得できます。</p></div>
+<div class="card"><h2>🌤️ 現在の天気</h2><div class="grid"><div class="metric">天気<div id="weatherNow" class="num">--</div></div><div class="metric">気温<div id="tempNow" class="num">--</div></div><div class="metric">湿度<div id="humidityNow" class="num">--</div></div><div class="metric">風<div id="windNow" class="num">--</div></div><div class="metric">雲量<div id="cloudNow" class="num">--</div></div><div class="metric">降水<div id="rainNow" class="num">--</div></div></div><div class="row"><span>📷 今すぐ撮影</span><b id="shootNow">--</b></div><p id="nowAdvice" class="small muted">現在の撮影条件を判定します。</p></div>
+<div class="card"><h2>🔧 接続診断</h2><div class="grid"><div class="metric">GPS<div id="gps" class="num">--</div></div><div class="metric">天気API<div id="api" class="num">--</div></div></div><p id="diag" class="small muted">エラーがあればここに表示します。</p></div>
+<div class="card"><div class="muted">🔥 今日ここへ行くべき度</div><div id="total" class="score">--</div><div id="verdict" class="badge">---</div><p id="summary" class="muted">---</p></div>
+<div class="card"><h2>🌌 星空・天の川</h2><div class="grid"><div class="metric">星空指数<div id="star" class="num">--</div></div><div class="metric">天の川期待度<div id="milky" class="num">--</div></div></div><div class="row"><span>低層雲</span><b id="lowT">--</b></div><div class="bar"><div id="lowB" class="fill"></div></div><div class="row"><span>中層雲</span><b id="midT">--</b></div><div class="bar"><div id="midB" class="fill"></div></div><div class="row"><span>高層雲</span><b id="highT">--</b></div><div class="bar"><div id="highB" class="fill"></div></div><div class="row"><span>視程</span><b id="visT">--</b></div><div class="row"><span>湿度</span><b id="humT">--</b></div><div class="row"><span>降水確率</span><b id="popT">--</b></div><p id="starReason" class="small muted">雨・厚い雲の時は指数に強い上限をかけます。</p></div>
+<div class="card"><h2>🌙 月</h2><div class="grid"><div class="metric">月齢<div id="age" class="num">--</div></div><div class="metric">月明かり<div id="illum" class="num">--</div></div></div></div>
+<div class="card"><h2>🌇🌅 焼け</h2><div class="grid"><div class="metric">夕焼け指数<div id="sunset" class="num">--</div></div><div class="metric">朝焼け指数<div id="sunrise" class="num">--</div></div></div></div>
+<div class="card"><h2>🕐 今夜の星空ランキング</h2><div id="ranking">予報取得後に表示します。</div></div>
+<div class="card"><h2>🎯 今日の狙い目</h2><div id="best" class="metric">予報を取得してください。</div></div>
+</div>
 <script>
-(async function(){
-  try{
-    if("serviceWorker" in navigator){
-      const regs=await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map(r=>r.unregister()));
-    }
-    if("caches" in window){
-      const keys=await caches.keys();
-      await Promise.all(keys.map(k=>caches.delete(k)));
-    }
-    console.log("STAR GO: legacy cache cleared");
-  }catch(e){ console.warn("cache cleanup",e); }
-})();
-</script>
-
-</head>
-<body><div class="wrap">
-<h1>📷 STAR GO <span class="muted">v0.5</span></h1>
-<p class="muted">復旧安定版：現在地・現在天気・撮影指数</p>
-
-<div class="card"><h2>📍 撮影地点</h2>
-<div class="grid">
-<div>緯度<input id="lat" value="35.4437"></div>
-<div>経度<input id="lon" value="139.6380"></div>
-<div>日付<input id="date" type="date"></div>
-<div>地点名<input id="place" value="臨港パーク"></div>
-</div>
-<button id="loc">📍 現在地を取得</button>
-<button id="load" class="secondary">☁️ 予報を取得</button>
-<p id="status" class="small muted">HTTPS上で開いている場合、現在地を取得できます。</p>
-</div>
-
-<div class="card"><h2>🌤️ 現在の天気</h2><div class="grid"><div class="metric">天気<div id="weatherNow" class="num">--</div></div><div class="metric">気温<div id="tempNow" class="num">--</div></div><div class="metric">湿度<div id="humidityNow" class="num">--</div></div><div class="metric">風<div id="windNow" class="num">--</div></div><div class="metric">雲量<div id="cloudNow" class="num">--</div></div><div class="metric">視程<div id="visibilityNow" class="num">--</div></div></div><div class="row"><span>📷 今すぐ撮影</span><b id="shootNow">--</b></div><p id="nowAdvice" class="small muted">現在の撮影条件を判定します。</p></div><div class="card"><h2>🔧 接続診断</h2>
-<div class="grid">
-<div class="metric">GPS<div id="gps" class="num">--</div></div>
-<div class="metric">天気API<div id="api" class="num">--</div></div>
-</div>
-<p id="diag" class="small muted">ここにエラー内容も表示します。</p>
-</div>
-
-<div class="card"><div class="muted">🔥 今日ここへ行くべき度</div>
-<div id="total" class="score">--</div><div id="verdict" class="badge">---</div>
-<p id="summary" class="muted">---</p></div>
-
-<div class="card"><h2>🌌 星空</h2><div class="grid">
-<div class="metric">星空指数<div id="star" class="num">--</div></div>
-<div class="metric">天の川期待度<div id="milky" class="num">--</div></div>
-</div>
-<div class="row">低層雲 <b id="lowT">--</b></div><div class="bar"><div id="lowB" class="fill"></div></div>
-<div class="row">中層雲 <b id="midT">--</b></div><div class="bar"><div id="midB" class="fill"></div></div>
-<div class="row">高層雲 <b id="highT">--</b></div><div class="bar"><div id="highB" class="fill"></div></div>
-<div class="row">視程 <b id="visT">--</b></div>
-<div class="row">湿度 <b id="humT">--</b></div>
-</div>
-
-<div class="card"><h2>🌙 月・天文条件</h2><div class="grid">
-<div class="metric">月齢<div id="age" class="num">--</div></div>
-<div class="metric">月明かり<div id="illum" class="num">--</div></div>
-</div></div>
-
-<div class="card"><h2>🌇🌅 焼け</h2><div class="grid">
-<div class="metric">夕焼け指数<div id="sunset" class="num">--</div></div>
-<div class="metric">朝焼け指数<div id="sunrise" class="num">--</div></div>
-</div></div>
-
-<div class="card"><h2>🎯 今日の狙い目</h2><div id="best" class="metric">予報を取得してください</div></div>
-</div>
-
-<script>
-const $=id=>document.getElementById(id);
-const clamp=x=>Math.max(0,Math.min(100,x));
-const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
-
-const d0=new Date();
-$("date").value=new Date(d0-d0.getTimezoneOffset()*60000).toISOString().slice(0,10);
-
-function status(t,kind="muted"){
- $("status").className="small "+kind;
- $("status").textContent=t;
-}
-function moon(date){
- const ref=Date.UTC(2000,0,6,18,14),d=new Date(date+"T12:00:00").getTime();
- let age=((d-ref)/86400000)%29.530588853;if(age<0)age+=29.530588853;
- return {age,illum:(1-Math.cos(2*Math.PI*age/29.530588853))/2};
-}
-
-$("loc").onclick=()=>{
- $("gps").textContent="取得中";
- if(!window.isSecureContext){
-   $("gps").textContent="NG";
-   $("diag").textContent="このページがHTTPSではありません。GitHub Pagesのhttps:// URLから開いてください。";
-   status("HTTPSではないため位置情報を利用できません。","warn"); return;
- }
- if(!navigator.geolocation){
-   $("gps").textContent="NG";$("diag").textContent="このブラウザはGeolocation APIに対応していません。";
-   status("位置情報に対応していません。","warn");return;
- }
- status("📍 GPSを取得しています…");
- navigator.geolocation.getCurrentPosition(
-   pos=>{
-     $("lat").value=pos.coords.latitude.toFixed(5);
-     $("lon").value=pos.coords.longitude.toFixed(5);
-     $("place").value="現在地";
-     $("gps").textContent="OK";
-     $("diag").textContent="GPS取得成功。緯度・経度を入力しました。";
-     status("📍 現在地を取得しました。","ok");
-     getWeather();
-   },
-   err=>{
-     $("gps").textContent="NG";
-     const m={1:"位置情報の利用が拒否されました。サイト設定で許可してください。",2:"位置情報を取得できませんでした。",3:"GPS取得がタイムアウトしました。"};
-     $("diag").textContent=m[err.code]||("GPS error code: "+err.code);
-     status(m[err.code]||"GPS取得に失敗しました。","warn");
-   },
-   {enableHighAccuracy:true,timeout:15000,maximumAge:300000}
- );
-};
-
+const $=id=>document.getElementById(id),clamp=x=>Math.max(0,Math.min(100,x)),avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+const now=new Date();$("date").value=new Date(now-now.getTimezoneOffset()*60000).toISOString().slice(0,10);
+function setStatus(t,k="muted"){$("status").className="small "+k;$("status").textContent=t}
+function moon(date){const ref=Date.UTC(2000,0,6,18,14),d=new Date(date+"T12:00:00").getTime();let age=((d-ref)/86400000)%29.530588853;if(age<0)age+=29.530588853;return{age,illum:(1-Math.cos(2*Math.PI*age/29.530588853))/2}}
+function weatherLabel(c){if(c===0)return"☀️ 快晴";if(c===1)return"🌤️ 晴れ";if(c===2)return"⛅ 薄曇り";if(c===3)return"☁️ 曇り";if(c===45||c===48)return"🌫️ 霧";if([51,53,55,56,57].includes(c))return"🌦️ 霧雨";if([61,63,65,66,67,80,81,82].includes(c))return"🌧️ 雨";if([71,73,75,77,85,86].includes(c))return"🌨️ 雪";if([95,96,99].includes(c))return"⛈️ 雷雨";return"🌤️ 不明"}
+function weatherCap(code,precip,pop,cloud){let cap=100,reason=[];if([95,96,99].includes(code)){cap=Math.min(cap,5);reason.push("雷雨")}else if([65,67,82].includes(code)||precip>=7){cap=Math.min(cap,5);reason.push("大雨")}else if([61,63,66,80,81].includes(code)||precip>=1){cap=Math.min(cap,12);reason.push("降雨")}else if([51,53,55,56,57].includes(code)){cap=Math.min(cap,18);reason.push("霧雨")}if(code===45||code===48){cap=Math.min(cap,15);reason.push("霧")}if(pop>=80){cap=Math.min(cap,15);reason.push("降水確率80%以上")}else if(pop>=60){cap=Math.min(cap,30);reason.push("降水確率60%以上")}if(cloud>=95){cap=Math.min(cap,10);reason.push("雲量95%以上")}else if(cloud>=85){cap=Math.min(cap,22);reason.push("雲量85%以上")}else if(cloud>=70){cap=Math.min(cap,45);reason.push("雲量70%以上")}return{cap,reason}}
+$("loc").onclick=()=>{$("gps").textContent="取得中";if(!window.isSecureContext){$("gps").textContent="NG";$("diag").textContent="HTTPSではありません。";return}navigator.geolocation.getCurrentPosition(p=>{$("lat").value=p.coords.latitude.toFixed(5);$("lon").value=p.coords.longitude.toFixed(5);$("place").value="現在地";$("gps").textContent="OK";$("diag").textContent="GPS取得成功。";setStatus("📍 現在地を取得しました。","ok");getWeather()},e=>{$("gps").textContent="NG";$("diag").textContent="GPS error code: "+e.code;setStatus("位置情報を取得できませんでした。","warn")},{enableHighAccuracy:true,timeout:15000,maximumAge:300000})};
 $("load").onclick=getWeather;
-
-async function getWeather(){
- const lat=Number($("lat").value),lon=Number($("lon").value),date=$("date").value;
- if(!Number.isFinite(lat)||!Number.isFinite(lon)){status("緯度・経度が正しくありません。","warn");return;}
- $("api").textContent="取得中";
- $("diag").textContent="Open-Meteoへ接続しています…";
- status("☁️ 天気予報を取得しています…");
- try{
-   /* v0.5はAPIを分離。まずforecast APIで確実に取得する */
-   const url="https://api.open-meteo.com/v1/forecast"+
-     "?latitude="+encodeURIComponent(lat)+
-     "&longitude="+encodeURIComponent(lon)+
-     "&current=temperature_2m,relative_humidity_2m,weather_code,cloud_cover,wind_speed_10m,visibility"+
-"&hourly=cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,relative_humidity_2m,visibility"+
-     "&timezone=auto"+
-     "&start_date="+encodeURIComponent(date)+
-     "&end_date="+encodeURIComponent(date);
-   const res=await fetch(url,{method:"GET",mode:"cors",cache:"no-store"});
-   const text=await res.text();
-   if(!res.ok)throw new Error("HTTP "+res.status+" "+text.slice(0,160));
-   let json;try{json=JSON.parse(text)}catch(e){throw new Error("JSONを解釈できません: "+text.slice(0,120))}
-   if(!json.hourly||!json.hourly.time)throw new Error("hourlyデータがありません");
-   window.weather=json;
-   $("api").textContent="OK";
-   $("diag").textContent="天気API取得成功。"+json.hourly.time.length+"時間分のデータを受信しました。";
-   status("☁️ 予報を取得しました。","ok");
-   calc();
- }catch(e){
-   $("api").textContent="NG";
-   $("diag").textContent="APIエラー: "+e.message;
-   status("予報取得に失敗しました。診断欄を確認してください。","err");
- }
-}
-
-function weatherLabel(c){if(c===0)return"☀️ 快晴";if(c<=2)return"🌤️ 晴れ";if(c===3)return"☁️ 曇り";if(c===45||c===48)return"🌫️ 霧";if([51,53,55,56,57].includes(c))return"🌦️ 霧雨";if([61,63,65,66,67,80,81,82].includes(c))return"🌧️ 雨";if([71,73,75,77,85,86].includes(c))return"🌨️ 雪";if(c>=95)return"⛈️ 雷雨";return"🌤️ 不明"}
-function renderCurrent(){const c=window.weather?.current;if(!c)return;$("weatherNow").textContent=weatherLabel(c.weather_code);$("tempNow").textContent=c.temperature_2m+"℃";$("humidityNow").textContent=c.relative_humidity_2m+"%";$("windNow").textContent=c.wind_speed_10m+" km/h";$("cloudNow").textContent=c.cloud_cover+"%";$("visibilityNow").textContent=Math.round((c.visibility||0)/1000)+" km";const clear=100-c.cloud_cover,vis=clamp((c.visibility||0)/25000*100),hum=clamp(100-Math.max(0,c.relative_humidity_2m-55)*1.8),wind=clamp(100-Math.max(0,c.wind_speed_10m-10)*3),s=clamp(.45*clear+.25*vis+.18*hum+.12*wind);$("shootNow").textContent=(s>=80?"◎ ":s>=60?"○ ":s>=40?"△ ":"× ")+Math.round(s);$("nowAdvice").textContent=s>=80?"今すぐでもかなり撮りやすい条件です。":s>=60?"今すぐ撮影も十分あり。":s>=40?"今は条件次第。狙い目時間も確認。":"今すぐは弱め。後の改善を狙いたい。"}
-function calc(){
- const w=window.weather;if(!w)return;renderCurrent();
- const m=moon($("date").value);
- $("age").textContent=m.age.toFixed(1);
- $("illum").textContent=Math.round(m.illum*100)+"%";
-
- const scores=w.hourly.time.map((_,i)=>{
-   const c=w.hourly.cloud_cover[i]??100,lo=w.hourly.cloud_cover_low[i]??c;
-   const md=w.hourly.cloud_cover_mid[i]??c,hi=w.hourly.cloud_cover_high[i]??c;
-   const hum=w.hourly.relative_humidity_2m[i]??100;
-   const vis=(w.hourly.visibility[i]??0)/1000;
-   const clear=100-(.55*c+.25*lo+.12*md+.08*hi);
-   const visibility=clamp(vis/25*100);
-   const humidity=clamp(100-Math.max(0,hum-50)*1.8);
-   const star=clamp(.38*clear+.24*(100-m.illum*55)+.20*visibility+.18*humidity);
-   const burn=clamp(.45*(100-Math.abs(c-35)*2.2)+.25*visibility+.30*(100-Math.abs(hum-65)*1.8));
-   return {star,burn};
- });
- const night=scores.filter((x,i)=>{const h=+w.hourly.time[i].slice(11,13);return h>=18||h<=5});
- const star=avg(night.map(x=>x.star));
- const milky=clamp(star*(1-m.illum)*1.15);
- const burn=avg(scores.map(x=>x.burn));
-
- $("star").textContent=Math.round(star);
- $("milky").textContent=Math.round(milky);
- $("sunset").textContent=Math.round(burn);
- $("sunrise").textContent=Math.round(burn);
-
- let i0=w.hourly.time.findIndex(t=>t.slice(11,13)==="22");if(i0<0)i0=0;
- const lo=avg(w.hourly.cloud_cover_low.slice(i0,i0+6));
- const md=avg(w.hourly.cloud_cover_mid.slice(i0,i0+6));
- const hi=avg(w.hourly.cloud_cover_high.slice(i0,i0+6));
- $("lowT").textContent=Math.round(lo)+"%";$("midT").textContent=Math.round(md)+"%";$("highT").textContent=Math.round(hi)+"%";
- $("lowB").style.width=lo+"%";$("midB").style.width=md+"%";$("highB").style.width=hi+"%";
- $("visT").textContent=Math.round(avg(w.hourly.visibility.slice(i0,i0+6))/1000)+" km";
- $("humT").textContent=Math.round(avg(w.hourly.relative_humidity_2m.slice(i0,i0+6)))+"%";
-
- const total=.65*star+.35*burn;
- $("total").textContent=Math.round(total);
- $("verdict").textContent=total>=85?"🔥 出撃推奨":total>=70?"👍 行く価値あり":total>=50?"🤔 条件次第":"🛑 見送り寄り";
- $("summary").textContent=total>=85?"かなり狙い目。":total>=70?"十分チャンスあり。":total>=50?"時間を絞れば狙えそう。":"今回は条件弱め。";
-
- let bi=-1,bv=-1;
- scores.forEach((x,i)=>{const h=+w.hourly.time[i].slice(11,13);if((h>=18||h<=5)&&x.star>bv){bv=x.star;bi=i}});
- if(bi>=0)$("best").innerHTML="<b>"+w.hourly.time[bi].slice(11,16)+"</b>　🌌 星空 "+Math.round(scores[bi].star)+"/100";
-}
-
+async function getWeather(){const lat=Number($("lat").value),lon=Number($("lon").value),date=$("date").value;$("api").textContent="取得中";setStatus("☁️ 天気予報を取得しています…");try{const url="https://api.open-meteo.com/v1/forecast?latitude="+encodeURIComponent(lat)+"&longitude="+encodeURIComponent(lon)+"&current=temperature_2m,relative_humidity_2m,weather_code,cloud_cover,wind_speed_10m,visibility,precipitation&hourly=cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,relative_humidity_2m,visibility,precipitation_probability,precipitation,weather_code&timezone=auto&start_date="+encodeURIComponent(date)+"&end_date="+encodeURIComponent(date);const res=await fetch(url,{cache:"no-store"}),text=await res.text();if(!res.ok)throw new Error("HTTP "+res.status+" "+text.slice(0,120));const json=JSON.parse(text);if(!json.hourly||!json.hourly.time)throw new Error("hourly data missing");window.weather=json;$("api").textContent="OK";$("diag").textContent="天気API取得成功。";setStatus("☁️ 予報を取得しました。","ok");render()}catch(e){$("api").textContent="NG";$("diag").textContent="APIエラー: "+e.message;setStatus("予報取得に失敗しました。","err")}}
+function renderCurrent(){const c=window.weather?.current;if(!c)return;$("weatherNow").textContent=weatherLabel(c.weather_code);$("tempNow").textContent=c.temperature_2m+"℃";$("humidityNow").textContent=c.relative_humidity_2m+"%";$("windNow").textContent=c.wind_speed_10m+" km/h";$("cloudNow").textContent=c.cloud_cover+"%";$("rainNow").textContent=c.precipitation+" mm";const base=.55*(100-c.cloud_cover)+.20*clamp((c.visibility||0)/25000*100)+.15*clamp(100-Math.max(0,c.relative_humidity_2m-55)*1.8)+.10*clamp(100-Math.max(0,c.wind_speed_10m-10)*3),wc=weatherCap(c.weather_code,c.precipitation||0,0,c.cloud_cover||0),s=Math.min(base,wc.cap);$("shootNow").textContent=(s>=80?"◎ ":s>=60?"○ ":s>=40?"△ ":"× ")+Math.round(s);$("nowAdvice").textContent=wc.cap<50?"今すぐは撮影非推奨："+wc.reason.join("・"):s>=70?"今すぐ撮影も十分あり。":"今は条件次第。"}
+function hourlyScore(i,m){const w=window.weather.hourly,c=w.cloud_cover[i]??100,lo=w.cloud_cover_low[i]??c,md=w.cloud_cover_mid[i]??c,hi=w.cloud_cover_high[i]??c,hum=w.relative_humidity_2m[i]??100,vis=(w.visibility[i]??0)/1000,pop=w.precipitation_probability[i]??0,pr=w.precipitation[i]??0,code=w.weather_code[i]??3,clear=100-(.50*c+.25*lo+.15*md+.10*hi),visibility=clamp(vis/25*100),humidity=clamp(100-Math.max(0,hum-55)*1.8);let star=.45*clear+.20*(100-m.illum*55)+.20*visibility+.15*humidity;const wc=weatherCap(code,pr,pop,c);star=Math.min(clamp(star),wc.cap);let milky=star*(1-m.illum*.75);milky=Math.min(clamp(milky),wc.cap);const burn=clamp(.45*(100-Math.abs(c-35)*2.2)+.25*visibility+.30*(100-Math.abs(hum-65)*1.8));return{star,milky,burn,cap:wc.cap,reason:wc.reason,pop}}
+function render(){renderCurrent();const w=window.weather,m=moon($("date").value);$("age").textContent=m.age.toFixed(1);$("illum").textContent=Math.round(m.illum*100)+"%";const scores=w.hourly.time.map((_,i)=>hourlyScore(i,m)),night=scores.filter((x,i)=>{const h=+w.hourly.time[i].slice(11,13);return h>=18||h<=5}),star=avg(night.map(x=>x.star)),milky=avg(night.map(x=>x.milky)),burn=avg(scores.map(x=>x.burn));$("star").textContent=Math.round(star);$("milky").textContent=Math.round(milky);$("sunset").textContent=Math.round(burn);$("sunrise").textContent=Math.round(burn);let i0=w.hourly.time.findIndex(t=>t.slice(11,13)==="22");if(i0<0)i0=0;const lo=avg(w.hourly.cloud_cover_low.slice(i0,i0+6)),md=avg(w.hourly.cloud_cover_mid.slice(i0,i0+6)),hi=avg(w.hourly.cloud_cover_high.slice(i0,i0+6));$("lowT").textContent=Math.round(lo)+"%";$("midT").textContent=Math.round(md)+"%";$("highT").textContent=Math.round(hi)+"%";$("lowB").style.width=lo+"%";$("midB").style.width=md+"%";$("highB").style.width=hi+"%";$("visT").textContent=Math.round(avg(w.hourly.visibility.slice(i0,i0+6))/1000)+" km";$("humT").textContent=Math.round(avg(w.hourly.relative_humidity_2m.slice(i0,i0+6)))+"%";$("popT").textContent=Math.round(avg(w.hourly.precipitation_probability.slice(i0,i0+6)))+"%";const worst=night.reduce((a,b)=>b.cap<a.cap?b:a,night[0]||{cap:100,reason:[]});$("starReason").textContent=worst&&worst.cap<50?"強い減点："+worst.reason.join("・"):"雨・厚い雲の時は指数に強い上限をかけます。";const total=.55*star+.20*milky+.25*burn;$("total").textContent=Math.round(total);$("verdict").textContent=total>=85?"🔥 出撃推奨":total>=70?"👍 行く価値あり":total>=50?"🤔 条件次第":"🛑 見送り寄り";$("summary").textContent=total>=85?"かなり狙い目。":total>=70?"十分チャンスあり。":total>=50?"時間を絞れば可能性あり。":"今回は見送り寄り。";const ranked=[];scores.forEach((x,i)=>{const hr=+w.hourly.time[i].slice(11,13);if(hr>=18||hr<=5)ranked.push({i,v:x.star,m:x.milky})});ranked.sort((a,b)=>b.v-a.v);$("ranking").innerHTML=ranked.slice(0,5).map((r,k)=>"<div class='rank'><b>"+(k+1)+"位 "+w.hourly.time[r.i].slice(11,16)+"</b>　星空 "+Math.round(r.v)+" / 天の川 "+Math.round(r.m)+"</div>").join("");if(ranked.length){const r=ranked[0];$("best").innerHTML="<b>"+w.hourly.time[r.i].slice(11,16)+"</b>　🌌 星空 "+Math.round(r.v)+"/100　🌠 天の川 "+Math.round(r.m)+"/100"}}
 getWeather();
-</script>
-</body></html>
+</script></body></html>

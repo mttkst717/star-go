@@ -70,7 +70,7 @@
 <div class="card"><h2>🎯 今日の狙い目</h2><div id="best" class="metric">予報を取得してください。</div></div>
 </div>
 <script>
-const APP_VERSION="v1.2.1";
+const APP_VERSION="v1.2.2";
 document.addEventListener("DOMContentLoaded",()=>{
   document.title="STAR GO "+APP_VERSION;
   const el=document.getElementById("appVersion");
@@ -84,20 +84,32 @@ function localDateString(d){
  const x=new Date(d.getTime()-d.getTimezoneOffset()*60000);
  return x.toISOString().slice(0,10);
 }
+function nextDateString(s){
+ const d=new Date(s+"T12:00:00");
+ d.setDate(d.getDate()+1);
+ return localDateString(d);
+}
+function minutesBetween(a,b){return(a.getTime()-b.getTime())/60000;}
+function timeProximityScore(time,event,prePeak,postPeak,widthBefore,widthAfter){
+ if(!event)return 0;
+ const d=minutesBetween(time,event);
+ if(d>=prePeak&&d<=postPeak)return 100;
+ return clamp(d<prePeak
+   ?100*Math.exp(-Math.pow((d-prePeak)/widthBefore,2))
+   :100*Math.exp(-Math.pow((d-postPeak)/widthAfter,2)));
+}
 function shiftSelectedDate(days){
  const d=new Date($("date").value+"T12:00:00");
  d.setDate(d.getDate()+days);
  $("date").value=localDateString(d);
- window.addEventListener("resize",()=>{if(window.weather){const m=moon($("date").value);const s=window.weather.hourly.time.map((_,i)=>hourlyScore(i,m));drawScoreGraph(window.weather.hourly.time,s);}
-function nextDateString(s){const d=new Date(s+"T12:00:00");d.setDate(d.getDate()+1);return localDateString(d);}
-function minutesBetween(a,b){return(a.getTime()-b.getTime())/60000;}
-function timeProximityScore(time,event,prePeak,postPeak,widthBefore,widthAfter){if(!event)return 0;const d=minutesBetween(time,event);if(d>=prePeak&&d<=postPeak)return 100;return clamp(d<prePeak?100*Math.exp(-Math.pow((d-prePeak)/widthBefore,2)):100*Math.exp(-Math.pow((d-postPeak)/widthAfter,2)));}
-});
-getWeather();
+ getWeather();
 }
 $("prevDay").onclick=()=>shiftSelectedDate(-1);
 $("nextDay").onclick=()=>shiftSelectedDate(1);
-$("todayBtn").onclick=()=>{$("date").value=localDateString(new Date());getWeather();};
+$("todayBtn").onclick=()=>{
+ $("date").value=localDateString(new Date());
+ getWeather();
+};
 $("date").addEventListener("change",()=>getWeather());
 
 function setStatus(t,k="muted"){$("status").className="small "+k;$("status").textContent=t}
@@ -209,7 +221,15 @@ $("mapUse").onclick=()=>{
  $("lat").value=pickedLat.toFixed(5);$("lon").value=pickedLon.toFixed(5);$("place").value="地図で選択した地点";
  $("mapWrap").style.display="none";
  setStatus("🗺️ 地図で選択した地点の予報を取得します。","ok");
- getWeather();
+ 
+window.addEventListener("resize",()=>{
+ if(window.weather){
+   const m=moon($("date").value);
+   const s=window.weather.hourly.time.map((_,i)=>hourlyScore(i,m));
+   drawScoreGraph(window.weather.hourly.time,s);
+ }
+});
+getWeather();
 };
 
 getWeather();

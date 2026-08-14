@@ -13,13 +13,26 @@
 .spotItem{background:#0c1424;border-radius:12px;padding:11px;margin:8px 0}.spotTags{font-size:12px;color:#9eabc4}
 .spotActions{display:grid;grid-template-columns:1fr 1fr;gap:7px}.spotActions button{margin-top:7px}
 #nearbyResults .spotItem b{font-size:16px}
+
+.legendLine.star{background:#4da3ff}
+.legendLine.milky{background:#b07cff}
+.legendLine.burn{background:#ff8a1f}
+.calendarBtn{margin-top:6px}
+.statusInfo{border-left:4px solid #4da3ff}
+.statusWarn{border-left:4px solid #ffb24d}
+.statusErr{border-left:4px solid #ff7070}
+.astroTable .row{border-bottom:1px solid #25324a;padding:7px 0}
+details>summary{cursor:pointer;font-weight:800;font-size:18px;padding:8px 0}
+details[open]>summary{margin-bottom:8px}
+#otherPlacesContent>.card{margin:10px 0;background:#0d1627}
 </style>
 <script>(async function(){try{if("serviceWorker"in navigator){const r=await navigator.serviceWorker.getRegistrations();await Promise.all(r.map(x=>x.unregister()))}if("caches"in window){const k=await caches.keys();await Promise.all(k.map(x=>caches.delete(x)))}}catch(e){}})();</script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>#map{height:360px;border-radius:14px;margin-top:10px}.mapActions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}</style>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script></head><body><div class="wrap">
-<h1>📷 STAR GO <span class="muted"><span id="appVersion"></span></span></h1><p class="muted">撮影スポットDB＋30分圏内の代替候補検索</p>
+<h1>📷 STAR GO <span class="muted"><span id="appVersion"></span></span></h1><p class="muted">天気がなくても使える天文撮影プランナー</p>
 <div class="card"><h2>📍 撮影地点</h2><div class="grid"><div>緯度<input id="lat" value="35.4437"></div><div>経度<input id="lon" value="139.6380"></div><div>日付<input id="date" type="date">
+<button type="button" id="calendarBtn" class="secondary calendarBtn">📅 カレンダーから選ぶ</button>
 <div class="dateQuick">
 <button type="button" id="prevDay" class="secondary mini">← 前日</button>
 <button type="button" id="todayBtn" class="secondary mini">今日</button>
@@ -30,6 +43,30 @@
 <p id="mapStatus" class="small muted">地図をタップして撮影地点にピンを立ててください。</p>
 <div class="mapActions"><button id="mapUse">📍 この場所で予報を見る</button><button id="mapClose" class="secondary">閉じる</button></div>
 </div></div>
+
+<div class="card" id="forecastStatusCard">
+<h2>☁️ 予報ステータス</h2>
+<div id="forecastStatusBox" class="metric statusInfo">
+<div id="forecastStatusTitle" class="num">確認中…</div>
+<div id="forecastStatusDetail" class="small muted"></div>
+</div>
+</div>
+
+<div class="card">
+<h2>🔭 天文情報（天気予報なしでも表示）</h2>
+<div class="grid">
+<div class="metric"><div class="muted">月齢</div><div id="astroMoonAge" class="num">--</div></div>
+<div class="metric"><div class="muted">月明かり</div><div id="astroMoonIllum" class="num">--</div></div>
+<div class="metric"><div class="muted">月の出</div><div id="astroMoonrise" class="num">--</div></div>
+<div class="metric"><div class="muted">月の入り</div><div id="astroMoonset" class="num">--</div></div>
+<div class="metric"><div class="muted">天文薄明終了</div><div id="astroDarkStart" class="num">--</div></div>
+<div class="metric"><div class="muted">天文薄明開始</div><div id="astroDarkEnd" class="num">--</div></div>
+</div>
+<h3>🌠 天の川（銀河中心）</h3>
+<div id="galacticBest" class="metric">計算中…</div>
+<div id="galacticTimeline" class="astroTable"></div>
+<p class="small muted">銀河中心（いて座A*付近）の高度・方位を天文計算で推定します。天気予報の有無に関係なく、未来の日付でも計算できます。</p>
+</div>
 <div class="card"><h2>🌤️ 現在の天気</h2><div class="grid"><div class="metric">天気<div id="weatherNow" class="num">--</div></div><div class="metric">気温<div id="tempNow" class="num">--</div></div><div class="metric">湿度<div id="humidityNow" class="num">--</div></div><div class="metric">風<div id="windNow" class="num">--</div></div><div class="metric">雲量<div id="cloudNow" class="num">--</div></div><div class="metric">降水<div id="rainNow" class="num">--</div></div></div><div class="row"><span>📷 今すぐ撮影</span><b id="shootNow">--</b></div><p id="nowAdvice" class="small muted">現在の撮影条件を判定します。</p></div>
 <div class="card"><h2>🔧 接続診断</h2><div class="grid"><div class="metric">GPS<div id="gps" class="num">--</div></div><div class="metric">天気API<div id="api" class="num">--</div></div></div><p id="diag" class="small muted">エラーがあればここに表示します。</p></div>
 <div class="card"><div class="muted">🔥 今日ここへ行くべき度</div><div id="total" class="score">--</div><div id="verdict" class="badge">---</div><p id="summary" class="muted">---</p></div>
@@ -61,16 +98,25 @@
 <h2>📈 時間別おすすめ度</h2>
 <canvas id="scoreGraph"></canvas>
 <div class="graphLegend">
-<span><i class="legendLine"></i>星空指数</span>
-<span><i class="legendLine milky"></i>天の川期待度</span><span><i class="legendLine sunset"></i>夕焼け</span><span><i class="legendLine sunrise"></i>朝焼け</span>
+<span><i class="legendLine star"></i>星空指数</span>
+<span><i class="legendLine milky"></i>天の川期待度</span>
+<span><i class="legendLine burn"></i>焼け度数</span>
 </div>
-<p class="small muted">横軸＝時刻、縦軸＝おすすめ度（0〜100）。青＝星空指数、紫点線＝天の川期待度、橙＝焼け度数（夕焼け＋朝焼け）です。</p><p class="small muted">※ 天の川期待度は星空指数より月明かりと夜間時間帯を強く反映。焼け度数は夕焼け・朝焼けの高い方を1本の線に統合しています。</p>
+<p class="small muted">横軸＝時刻、縦軸＝おすすめ度（0〜100）。青実線＝星空指数、紫点線＝天の川期待度、オレンジ実線＝焼け度数です。</p><p class="small muted">※ 天の川期待度は星空指数より月明かりと夜間時間帯を強く反映。焼け度数は夕焼け・朝焼けの高い方を1本の線に統合しています。</p>
 </div>
 <div class="card"><h2>🌌 今夜の撮影おすすめ時間</h2><div id="ranking">予報取得後に表示します。</div></div>
 <div class="card"><h2>🎯 今日の狙い目</h2><div id="best" class="metric">予報を取得してください。</div></div>
+
+<div class="card">
+<details id="otherPlaces">
+<summary>🚗 他の撮影候補・スポットDBを見る</summary>
+<p class="small muted">必要なときだけ展開できます。</p>
+<div id="otherPlacesContent"></div>
+</details>
+</div>
 </div>
 <script>
-const APP_VERSION="v1.2.3";
+const APP_VERSION="v1.3.0";
 document.addEventListener("DOMContentLoaded",()=>{
   document.title="STAR GO "+APP_VERSION;
   const el=document.getElementById("appVersion");
@@ -110,15 +156,183 @@ $("todayBtn").onclick=()=>{
  $("date").value=localDateString(new Date());
  getWeather();
 };
-$("date").addEventListener("change",()=>getWeather());
+$("calendarBtn").onclick=()=>{
+ const el=$("date");
+ if(typeof el.showPicker==="function")el.showPicker();else el.focus();
+};
+$("date").addEventListener("change",()=>{renderAstronomy();getWeather();});
 
 function setStatus(t,k="muted"){$("status").className="small "+k;$("status").textContent=t}
+
+function norm360(v){v%=360;if(v<0)v+=360;return v}
+function rad2(v){return v*Math.PI/180}
+function deg2(v){return v*180/Math.PI}
+function julianDate(d){return d.getTime()/86400000+2440587.5}
+function siderealDeg(d,lon){
+ const jd=julianDate(d),T=(jd-2451545.0)/36525;
+ return norm360(280.46061837+360.98564736629*(jd-2451545.0)+0.000387933*T*T+lon);
+}
+function equatorialAltAz(d,lat,lon,raDeg,decDeg){
+ let H=rad2(norm360(siderealDeg(d,lon)-raDeg));if(H>Math.PI)H-=Math.PI*2;
+ const p=rad2(lat),dec=rad2(decDeg);
+ const alt=Math.asin(Math.sin(p)*Math.sin(dec)+Math.cos(p)*Math.cos(dec)*Math.cos(H));
+ const az=Math.atan2(-Math.sin(H)*Math.cos(dec),Math.sin(dec)*Math.cos(p)-Math.cos(dec)*Math.sin(p)*Math.cos(H));
+ return {alt:deg2(alt),az:norm360(deg2(az))};
+}
+function azLabel(a){
+ const n=["北","北東","東","南東","南","南西","西","北西"];
+ return n[Math.round(a/45)%8];
+}
+function galacticCenterAt(d,lat,lon){
+ // Galactic center: RA 17h45m40s, Dec -29°00'28" (J2000 approximation)
+ return equatorialAltAz(d,lat,lon,266.4168,-29.0078);
+}
+function approxMoonRaDec(d){
+ const jd=julianDate(d),D=jd-2451545.0;
+ const L=norm360(218.316+13.176396*D);
+ const M=norm360(134.963+13.064993*D);
+ const F=norm360(93.272+13.229350*D);
+ const lon=rad2(norm360(L+6.289*Math.sin(rad2(M))));
+ const lat=rad2(5.128*Math.sin(rad2(F)));
+ const eps=rad2(23.4393);
+ const x=Math.cos(lon)*Math.cos(lat);
+ const y=Math.sin(lon)*Math.cos(lat)*Math.cos(eps)-Math.sin(lat)*Math.sin(eps);
+ const z=Math.sin(lon)*Math.cos(lat)*Math.sin(eps)+Math.sin(lat)*Math.cos(eps);
+ return {ra:norm360(deg2(Math.atan2(y,x))),dec:deg2(Math.atan2(z,Math.sqrt(x*x+y*y)))};
+}
+function moonAlt(d,lat,lon){
+ const q=approxMoonRaDec(d);
+ return equatorialAltAz(d,lat,lon,q.ra,q.dec).alt;
+}
+function moonEvents(dateStr,lat,lon){
+ let rise=null,set=null,last=null;
+ for(let mins=0;mins<=24*60;mins+=5){
+   const d=new Date(dateStr+"T00:00:00");d.setMinutes(mins);
+   const a=moonAlt(d,lat,lon);
+   if(last!==null){
+     if(last<0&&a>=0&&rise===null)rise=new Date(d);
+     if(last>=0&&a<0&&set===null)set=new Date(d);
+   }
+   last=a;
+ }
+ const f=d=>d?String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"):"--";
+ return {rise:f(rise),set:f(set)};
+}
+function sunRaDec(d){
+ const jd=julianDate(d),n=jd-2451545.0;
+ const L=norm360(280.460+0.9856474*n),g=rad2(norm360(357.528+0.9856003*n));
+ const lam=rad2(norm360(L+1.915*Math.sin(g)+0.020*Math.sin(2*g)));
+ const eps=rad2(23.439-0.0000004*n);
+ return {ra:norm360(deg2(Math.atan2(Math.cos(eps)*Math.sin(lam),Math.cos(lam)))),dec:deg2(Math.asin(Math.sin(eps)*Math.sin(lam)))};
+}
+function sunAlt(d,lat,lon){
+ const s=sunRaDec(d);return equatorialAltAz(d,lat,lon,s.ra,s.dec).alt;
+}
+function astronomicalTwilight(dateStr,lat,lon){
+ let evening=null,morning=null,last=null;
+ const start=new Date(dateStr+"T12:00:00");
+ for(let mins=0;mins<=24*60;mins+=5){
+   const d=new Date(start.getTime()+mins*60000),a=sunAlt(d,lat,lon);
+   if(last!==null){
+     if(last>-18&&a<=-18&&evening===null)evening=new Date(d);
+     if(last<=-18&&a>-18&&evening!==null&&morning===null)morning=new Date(d);
+   }
+   last=a;
+ }
+ const f=d=>d?String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"):"--";
+ return {evening:f(evening),morning:f(morning)};
+}
+function renderAstronomy(){
+ const date=$("date").value,lat=Number($("lat").value),lon=Number($("lon").value);
+ if(!date||!Number.isFinite(lat)||!Number.isFinite(lon))return;
+ const m=moon(date),me=moonEvents(date,lat,lon),tw=astronomicalTwilight(date,lat,lon);
+ $("astroMoonAge").textContent=m.age.toFixed(1);
+ $("astroMoonIllum").textContent=Math.round(m.illum*100)+"%";
+ $("astroMoonrise").textContent=me.rise;$("astroMoonset").textContent=me.set;
+ $("astroDarkStart").textContent=tw.evening;$("astroDarkEnd").textContent=tw.morning;
+
+ const start=new Date(date+"T18:00:00"),rows=[];
+ for(let k=0;k<=12;k++){
+   const d=new Date(start.getTime()+k*60*60000),p=galacticCenterAt(d,lat,lon);
+   rows.push({d,p});
+ }
+ const visible=rows.filter(x=>x.p.alt>0);
+ const best=visible.sort((a,b)=>b.p.alt-a.p.alt)[0];
+ if(best){
+   const t=String(best.d.getHours()).padStart(2,"0")+":00";
+   $("galacticBest").innerHTML="<b>ピーク目安 "+t+"</b>　"+azLabel(best.p.az)+"（"+Math.round(best.p.az)+"°） 高度 "+Math.round(best.p.alt)+"°";
+ }else{
+   $("galacticBest").textContent="この夜は銀河中心が地平線上に出ない、または非常に低い見込みです。";
+ }
+ $("galacticTimeline").innerHTML=rows.filter((x,i)=>i%2===0).map(x=>{
+   const t=String(x.d.getHours()).padStart(2,"0")+":00";
+   return "<div class='row'><span>"+t+"</span><b>"+azLabel(x.p.az)+" / 高度 "+Math.round(x.p.alt)+"°</b></div>";
+ }).join("");
+}
+function dayDiffFromToday(dateStr){
+ const a=new Date(localDateString(new Date())+"T12:00:00"),b=new Date(dateStr+"T12:00:00");
+ return Math.round((b-a)/86400000);
+}
+function setForecastStatus(kind,title,detail){
+ const box=$("forecastStatusBox");
+ box.className="metric "+(kind==="ok"?"statusInfo":kind==="range"?"statusWarn":"statusErr");
+ $("forecastStatusTitle").textContent=title;$("forecastStatusDetail").textContent=detail||"";
+}
+
 function moon(date){const ref=Date.UTC(2000,0,6,18,14),d=new Date(date+"T12:00:00").getTime();let age=((d-ref)/86400000)%29.530588853;if(age<0)age+=29.530588853;return{age,illum:(1-Math.cos(2*Math.PI*age/29.530588853))/2}}
 function weatherLabel(c){if(c===0)return"☀️ 快晴";if(c===1)return"🌤️ 晴れ";if(c===2)return"⛅ 薄曇り";if(c===3)return"☁️ 曇り";if(c===45||c===48)return"🌫️ 霧";if([51,53,55,56,57].includes(c))return"🌦️ 霧雨";if([61,63,65,66,67,80,81,82].includes(c))return"🌧️ 雨";if([71,73,75,77,85,86].includes(c))return"🌨️ 雪";if([95,96,99].includes(c))return"⛈️ 雷雨";return"🌤️ 不明"}
 function weatherCap(code,precip,pop,cloud){let cap=100,reason=[];if([95,96,99].includes(code)){cap=Math.min(cap,5);reason.push("雷雨")}else if([65,67,82].includes(code)||precip>=7){cap=Math.min(cap,5);reason.push("大雨")}else if([61,63,66,80,81].includes(code)||precip>=1){cap=Math.min(cap,12);reason.push("降雨")}else if([51,53,55,56,57].includes(code)){cap=Math.min(cap,18);reason.push("霧雨")}if(code===45||code===48){cap=Math.min(cap,15);reason.push("霧")}if(pop>=80){cap=Math.min(cap,15);reason.push("降水確率80%以上")}else if(pop>=60){cap=Math.min(cap,30);reason.push("降水確率60%以上")}if(cloud>=95){cap=Math.min(cap,10);reason.push("雲量95%以上")}else if(cloud>=85){cap=Math.min(cap,22);reason.push("雲量85%以上")}else if(cloud>=70){cap=Math.min(cap,45);reason.push("雲量70%以上")}return{cap,reason}}
-$("loc").onclick=()=>{$("gps").textContent="取得中";if(!window.isSecureContext){$("gps").textContent="NG";$("diag").textContent="HTTPSではありません。";return}navigator.geolocation.getCurrentPosition(p=>{$("lat").value=p.coords.latitude.toFixed(5);$("lon").value=p.coords.longitude.toFixed(5);$("place").value="現在地";$("gps").textContent="OK";$("diag").textContent="GPS取得成功。";setStatus("📍 現在地を取得しました。","ok");getWeather()},e=>{$("gps").textContent="NG";$("diag").textContent="GPS error code: "+e.code;setStatus("位置情報を取得できませんでした。","warn")},{enableHighAccuracy:true,timeout:15000,maximumAge:300000})};
+$("loc").onclick=()=>{$("gps").textContent="取得中";if(!window.isSecureContext){$("gps").textContent="NG";$("diag").textContent="HTTPSではありません。";return}navigator.geolocation.getCurrentPosition(p=>{$("lat").value=p.coords.latitude.toFixed(5);$("lon").value=p.coords.longitude.toFixed(5);$("place").value="現在地";$("gps").textContent="OK";$("diag").textContent="GPS取得成功。";setStatus("📍 現在地を取得しました。","ok");renderAstronomy();getWeather()},e=>{$("gps").textContent="NG";$("diag").textContent="GPS error code: "+e.code;setStatus("位置情報を取得できませんでした。","warn")},{enableHighAccuracy:true,timeout:15000,maximumAge:300000})};
 $("load").onclick=getWeather;
-async function getWeather(){const lat=Number($("lat").value),lon=Number($("lon").value),date=$("date").value;$("api").textContent="取得中";setStatus("☁️ 天気予報を取得しています…");try{const url="https://api.open-meteo.com/v1/forecast?latitude="+encodeURIComponent(lat)+"&longitude="+encodeURIComponent(lon)+"&current=temperature_2m,relative_humidity_2m,weather_code,cloud_cover,wind_speed_10m,visibility,precipitation&hourly=cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,relative_humidity_2m,visibility,precipitation_probability,precipitation,weather_code&daily=sunrise,sunset&timezone=auto&start_date="+encodeURIComponent(date)+"&end_date="+encodeURIComponent(nextDateString(date));const res=await fetch(url,{cache:"no-store"}),text=await res.text();if(!res.ok)throw new Error("HTTP "+res.status+" "+text.slice(0,120));const json=JSON.parse(text);if(!json.hourly||!json.hourly.time)throw new Error("hourly data missing");window.weather=json;$("api").textContent="OK";$("diag").textContent="天気API取得成功。";setStatus("☁️ 予報を取得しました。","ok");render()}catch(e){$("api").textContent="NG";$("diag").textContent="APIエラー: "+e.message;setStatus("予報取得に失敗しました。","err")}}
+async function getWeather(){
+ const lat=Number($("lat").value),lon=Number($("lon").value),date=$("date").value;
+ renderAstronomy();
+ const dd=dayDiffFromToday(date);
+ if(dd<0){
+   $("api").textContent="対象外";
+   setForecastStatus("range","過去日は予報対象外","天文情報は表示しています。");
+   setStatus("選択日は過去日のため、天気予報は取得しません。","warn");
+   clearWeatherOnly();
+   return;
+ }
+ // Open-Meteo Forecast API supports forecasts up to 16 days; two-day overnight view
+ // requires selected date to leave room for the following morning.
+ if(dd>14){
+   $("api").textContent="期間外";
+   setForecastStatus("range","まだ天気予報がありません","選択日が先のため予報期間外です。月・薄明・天の川位置は計算済みです。");
+   setStatus("先の日付のため天気予報はまだありません。天文情報のみ表示します。","warn");
+   clearWeatherOnly();
+   return;
+ }
+ $("api").textContent="取得中";setForecastStatus("ok","天気予報を取得中…","");
+ setStatus("☁️ 天気予報を取得しています…");
+ try{
+   const url="https://api.open-meteo.com/v1/forecast?latitude="+encodeURIComponent(lat)+"&longitude="+encodeURIComponent(lon)+
+   "&current=temperature_2m,relative_humidity_2m,weather_code,cloud_cover,wind_speed_10m,visibility,precipitation"+
+   "&hourly=cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,relative_humidity_2m,visibility,precipitation_probability,precipitation,weather_code"+
+   "&daily=sunrise,sunset&timezone=auto&start_date="+encodeURIComponent(date)+"&end_date="+encodeURIComponent(nextDateString(date));
+   const res=await fetch(url,{cache:"no-store"}),text=await res.text();
+   if(!res.ok)throw new Error("HTTP "+res.status+" "+text.slice(0,120));
+   const json=JSON.parse(text);
+   if(!json.hourly||!json.hourly.time)throw new Error("hourly data missing");
+   window.weather=json;$("api").textContent="OK";$("diag").textContent="天気API取得成功。";
+   setForecastStatus("ok","天気予報を取得しました","天気＋天文情報を使っておすすめ度を計算します。");
+   setStatus("☁️ 予報を取得しました。","ok");render();
+ }catch(e){
+   $("api").textContent="NG";$("diag").textContent="APIエラー: "+e.message;
+   setForecastStatus("error","天気予報の取得エラー","通信またはAPIエラーです。天文情報は引き続き利用できます。");
+   setStatus("予報取得に失敗しました。天文情報のみ表示します。","err");
+   clearWeatherOnly();
+ }
+}
+function clearWeatherOnly(){
+ window.weather=null;
+ ["weatherNow","tempNow","humidityNow","windNow","cloudNow","rainNow","shootNow","total","star","milky","sunset","sunrise","lowT","midT","highT","visT","humT","popT"].forEach(id=>{const e=$(id);if(e)e.textContent="--"});
+ $("verdict").textContent="天気予報なし";$("summary").textContent="天文情報は上のカードで確認できます。";
+ $("ranking").textContent="天気予報がないため、総合おすすめ時間は算出していません。";
+ $("best").textContent="天文情報を参考に撮影計画を立てられます。";
+ const c=$("scoreGraph");if(c){const ctx=c.getContext("2d");ctx.clearRect(0,0,c.width,c.height);}
+}
 function renderCurrent(){const c=window.weather?.current;if(!c)return;$("weatherNow").textContent=weatherLabel(c.weather_code);$("tempNow").textContent=c.temperature_2m+"℃";$("humidityNow").textContent=c.relative_humidity_2m+"%";$("windNow").textContent=c.wind_speed_10m+" km/h";$("cloudNow").textContent=c.cloud_cover+"%";$("rainNow").textContent=c.precipitation+" mm";const base=.55*(100-c.cloud_cover)+.20*clamp((c.visibility||0)/25000*100)+.15*clamp(100-Math.max(0,c.relative_humidity_2m-55)*1.8)+.10*clamp(100-Math.max(0,c.wind_speed_10m-10)*3),wc=weatherCap(c.weather_code,c.precipitation||0,0,c.cloud_cover||0),s=Math.min(base,wc.cap);$("shootNow").textContent=(s>=80?"◎ ":s>=60?"○ ":s>=40?"△ ":"× ")+Math.round(s);$("nowAdvice").textContent=wc.cap<50?"今すぐは撮影非推奨："+wc.reason.join("・"):s>=70?"今すぐ撮影も十分あり。":"今は条件次第。"}
 function hourlyScore(i,m){const w=window.weather.hourly,c=w.cloud_cover[i]??100,lo=w.cloud_cover_low[i]??c,md=w.cloud_cover_mid[i]??c,hi=w.cloud_cover_high[i]??c,hum=w.relative_humidity_2m[i]??100,vis=(w.visibility[i]??0)/1000,pop=w.precipitation_probability[i]??0,pr=w.precipitation[i]??0,code=w.weather_code[i]??3,clear=100-(.50*c+.25*lo+.15*md+.10*hi),visibility=clamp(vis/25*100),humidity=clamp(100-Math.max(0,hum-55)*1.8);let star=.45*clear+.20*(100-m.illum*55)+.20*visibility+.15*humidity;const wc=weatherCap(code,pr,pop,c);star=Math.min(clamp(star),wc.cap);const hour=new Date(w.time[i]).getHours();
    const nightFactor=(hour>=21||hour<=4)?1:(hour>=19||hour<=6?0.45:0.08);
@@ -207,7 +421,7 @@ function showSpot(i){
  const s=SPOTS[i];$("mapWrap").style.display="block";ensureMap();setTimeout(()=>{starMap.invalidateSize();starMap.setView([s.lat,s.lon],12);starMarker.setLatLng([s.lat,s.lon]);pickedLat=s.lat;pickedLon=s.lon;$("mapStatus").textContent=s.name+" / "+spotTags(s);},100);
 }
 function useSpot(i){
- const s=SPOTS[i];$("lat").value=s.lat.toFixed(5);$("lon").value=s.lon.toFixed(5);$("place").value=s.name;setStatus("📸 "+s.name+" の予報を取得します。","ok");getWeather();
+ const s=SPOTS[i];$("lat").value=s.lat.toFixed(5);$("lon").value=s.lon.toFixed(5);$("place").value=s.name;setStatus("📸 "+s.name+" の予報を取得します。","ok");renderAstronomy();getWeather();
 }
 document.querySelectorAll(".spotFilter").forEach(b=>b.onclick=()=>renderSpots(b.dataset.cat));
 
@@ -242,6 +456,16 @@ $("nearbyBtn").onclick=async()=>{
  $("nearbyResults").innerHTML=found.slice(0,5).map(s=>`<div class="spotItem"><b>${s.name}</b><div>${Math.round(s.score)}点　🚗 約${Math.round(s.mins)}分</div><div class="spotTags">${spotTags(s)}</div><button onclick="useSpot(${SPOTS.findIndex(x=>x.name===s.name)})">この地点を見る</button></div>`).join("");
 };
 renderSpots();
+
+
+function moveOtherPlacesToBottom(){
+ const target=$("otherPlacesContent");if(!target)return;
+ const cards=[...document.querySelectorAll(".card")];
+ const spot=cards.find(c=>c.querySelector("h2")?.textContent.includes("撮影スポットDB"));
+ const near=cards.find(c=>c.querySelector("h2")?.textContent.includes("30分以内でもっと良い場所"));
+ if(spot)target.appendChild(spot);
+ if(near)target.appendChild(near);
+}
 
 let starMap=null,starMarker=null,pickedLat=null,pickedLon=null;
 function ensureMap(){
@@ -281,5 +505,5 @@ window.addEventListener("resize",()=>{
 getWeather();
 };
 
-getWeather();
+moveOtherPlacesToBottom();renderAstronomy();getWeather();
 </script></body></html>

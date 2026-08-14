@@ -26,7 +26,7 @@ details>summary{cursor:pointer;font-weight:800;font-size:18px;padding:8px 0}
 details[open]>summary{margin-bottom:8px}
 #otherPlacesContent>.card{margin:10px 0;background:#0d1627}
 
-/* v1.3.3 compact UI */
+/* v1.3.4 compact UI */
 #forecastStatusCard{padding:12px 16px}
 #forecastStatusCard h2{display:none}
 #forecastStatusBox{padding:8px 12px;display:flex;align-items:center;gap:10px;min-height:0}
@@ -36,20 +36,28 @@ details[open]>summary{margin-bottom:8px}
 #diagWrap summary{font-size:12px;font-weight:600;color:#9eabc4;padding:3px 0}
 #diagWrap .small{padding:5px 0}
 
-/* v1.3.3 compact connection details */
+/* v1.3.4 compact connection details */
 #connectionCard{padding:10px 14px}
 #connectionCard>h2{display:none}
 #connectionCard details>summary{font-size:13px;font-weight:700;color:#9eabc4}
 #connectionInner{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
 #connectionInner .metric{padding:8px 10px}
 #connectionInner .num{font-size:18px}
+
+#toastMsg{
+ position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
+ background:#1b2a45;color:#eef3ff;border:1px solid #4b6592;border-radius:999px;
+ padding:10px 16px;font-weight:700;opacity:0;pointer-events:none;transition:.22s;
+ z-index:9999;box-shadow:0 8px 30px rgba(0,0,0,.35)
+}
+#toastMsg.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
 <script>(async function(){try{if("serviceWorker"in navigator){const r=await navigator.serviceWorker.getRegistrations();await Promise.all(r.map(x=>x.unregister()))}if("caches"in window){const k=await caches.keys();await Promise.all(k.map(x=>caches.delete(x)))}}catch(e){}})();</script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>#map{height:360px;border-radius:14px;margin-top:10px}.mapActions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}</style>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script></head><body><div class="wrap">
 <h1>📷 STAR GO <span class="muted"><span id="appVersion"></span></span></h1><p class="muted">天気がなくても使える天文撮影プランナー</p>
-<div class="card"><h2>📍 撮影地点</h2><div class="grid"><div>緯度<input id="lat" value="35.4437"></div><div>経度<input id="lon" value="139.6380"></div><div>日付<input id="date" type="date">
+<div class="card" id="shootingLocationCard"><h2>📍 撮影地点</h2><div class="grid"><div>緯度<input id="lat" value="35.4437"></div><div>経度<input id="lon" value="139.6380"></div><div>日付<input id="date" type="date">
 <button type="button" id="calendarBtn" class="secondary calendarBtn">📅 カレンダーから選ぶ</button>
 <div class="dateQuick">
 <button type="button" id="prevDay" class="secondary mini">← 前日</button>
@@ -154,10 +162,11 @@ details[open]>summary{margin-bottom:8px}
 </details>
 </div>
 </div>
+<div id="toastMsg"></div>
 <script>
 window.addEventListener("error",e=>{const d=document.getElementById("diagCompact");if(d)d.textContent="JSエラー: "+e.message;});
 window.addEventListener("unhandledrejection",e=>{const d=document.getElementById("diagCompact");if(d)d.textContent="Promiseエラー: "+(e.reason?.message||e.reason||"unknown");});
-const APP_VERSION="v1.3.3";
+const APP_VERSION="v1.3.4";
 document.addEventListener("DOMContentLoaded",()=>{
   document.title="STAR GO "+APP_VERSION;
   const el=document.getElementById("appVersion");
@@ -514,8 +523,30 @@ function renderSpots(cat="all"){
 function showSpot(i){
  const s=SPOTS[i];$("mapWrap").style.display="block";ensureMap();setTimeout(()=>{starMap.invalidateSize();starMap.setView([s.lat,s.lon],12);starMarker.setLatLng([s.lat,s.lon]);pickedLat=s.lat;pickedLon=s.lon;$("mapStatus").textContent=s.name+" / "+spotTags(s);},100);
 }
+
+let toastTimer=null;
+function showToast(msg){
+ const t=$("toastMsg");if(!t)return;
+ t.textContent=msg;t.classList.add("show");
+ clearTimeout(toastTimer);
+ toastTimer=setTimeout(()=>t.classList.remove("show"),2600);
+}
+function scrollToShootingLocation(){
+ const el=$("shootingLocationCard");
+ if(!el)return;
+ el.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
 function useSpot(i){
- const s=SPOTS[i];$("lat").value=s.lat.toFixed(5);$("lon").value=s.lon.toFixed(5);$("place").value=s.name;setStatus("📸 "+s.name+" の予報を取得します。","ok");renderAstronomy();getWeather();
+ const s=SPOTS[i];
+ $("lat").value=s.lat.toFixed(5);
+ $("lon").value=s.lon.toFixed(5);
+ $("place").value=s.name;
+ setStatus("📸 "+s.name+" の予報を取得します。","ok");
+ renderAstronomy();
+ getWeather();
+ showToast("✅ "+s.name+" を撮影地点に設定しました");
+ setTimeout(scrollToShootingLocation,80);
 }
 document.querySelectorAll(".spotFilter").forEach(b=>b.onclick=()=>renderSpots(b.dataset.cat));
 

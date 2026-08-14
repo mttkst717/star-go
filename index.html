@@ -26,7 +26,7 @@ details>summary{cursor:pointer;font-weight:800;font-size:18px;padding:8px 0}
 details[open]>summary{margin-bottom:8px}
 #otherPlacesContent>.card{margin:10px 0;background:#0d1627}
 
-/* v1.3.4 compact UI */
+/* v1.4.0 compact UI */
 #forecastStatusCard{padding:12px 16px}
 #forecastStatusCard h2{display:none}
 #forecastStatusBox{padding:8px 12px;display:flex;align-items:center;gap:10px;min-height:0}
@@ -36,7 +36,7 @@ details[open]>summary{margin-bottom:8px}
 #diagWrap summary{font-size:12px;font-weight:600;color:#9eabc4;padding:3px 0}
 #diagWrap .small{padding:5px 0}
 
-/* v1.3.4 compact connection details */
+/* v1.4.0 compact connection details */
 #connectionCard{padding:10px 14px}
 #connectionCard>h2{display:none}
 #connectionCard details>summary{font-size:13px;font-weight:700;color:#9eabc4}
@@ -90,6 +90,10 @@ details[open]>summary{margin-bottom:8px}
 </div>
 <h3>🌠 天の川（銀河中心）</h3>
 <div id="galacticBest" class="metric">計算中…</div>
+<div class="grid" style="margin-top:8px">
+<div class="metric"><div class="muted">天の川の傾き</div><div id="galacticTilt" class="num">--</div></div>
+<div class="metric"><div class="muted">構図タイプ</div><div id="galacticComposition" class="num">--</div></div>
+</div>
 <div id="galacticTimeline" class="astroTable"></div>
 <p class="small muted">銀河中心（いて座A*付近）の高度・方位を天文計算で推定します。天気予報の有無に関係なく、未来の日付でも計算できます。</p>
 </div>
@@ -166,7 +170,7 @@ details[open]>summary{margin-bottom:8px}
 <script>
 window.addEventListener("error",e=>{const d=document.getElementById("diagCompact");if(d)d.textContent="JSエラー: "+e.message;});
 window.addEventListener("unhandledrejection",e=>{const d=document.getElementById("diagCompact");if(d)d.textContent="Promiseエラー: "+(e.reason?.message||e.reason||"unknown");});
-const APP_VERSION="v1.3.4";
+const APP_VERSION="v1.4.0";
 document.addEventListener("DOMContentLoaded",()=>{
   document.title="STAR GO "+APP_VERSION;
   const el=document.getElementById("appVersion");
@@ -233,6 +237,22 @@ function azLabel(a){
  const n=["北","北東","東","南東","南","南西","西","北西"];
  return n[Math.round(a/45)%8];
 }
+
+function galacticTiltAt(d,lat,lon){
+ const gc=galacticCenterAt(d,lat,lon);
+ const q=equatorialAltAz(d,lat,lon,258.0,-38.0);
+ const daz=((q.az-gc.az+540)%360)-180;
+ const dx=daz*Math.cos(rad2(gc.alt)),dy=q.alt-gc.alt;
+ let a=Math.abs(deg2(Math.atan2(dy,dx)))%180;if(a>90)a=180-a;return a;
+}
+function tiltLabel(a){return a<20?"━ 横向き":a<55?"╱ 斜め":a<75?"┃ 縦寄り":"┃ 縦"}
+function compositionLabel(alt,tilt){
+ if(alt<0)return "地平線下";if(alt<10)return "低空・立ち上がり狙い";
+ if(alt<20)return tilt<55?"前景と絡めやすい":"低空の縦構図";
+ if(alt<=35)return tilt>=55?"王道の天の川構図":"広角の星景向き";
+ return "高高度・空を大きく";
+}
+
 function galacticCenterAt(d,lat,lon){
  // Galactic center: RA 17h45m40s, Dec -29°00'28" (J2000 approximation)
  return equatorialAltAz(d,lat,lon,266.4168,-29.0078);
@@ -361,13 +381,18 @@ function renderAstronomy(){
  const best=visible.sort((a,b)=>b.p.alt-a.p.alt)[0];
  if(best){
    const t=String(best.d.getHours()).padStart(2,"0")+":00";
+   const tilt=galacticTiltAt(best.d,lat,lon);
    $("galacticBest").innerHTML="<b>ピーク目安 "+t+"</b>　"+azLabel(best.p.az)+"（"+Math.round(best.p.az)+"°） 高度 "+Math.round(best.p.alt)+"°";
+   $("galacticTilt").textContent=Math.round(tilt)+"° "+tiltLabel(tilt);
+   $("galacticComposition").textContent=compositionLabel(best.p.alt,tilt);
  }else{
    $("galacticBest").textContent="この夜は銀河中心が地平線上に出ない、または非常に低い見込みです。";
+   $("galacticTilt").textContent="--";$("galacticComposition").textContent="撮影困難";
  }
  $("galacticTimeline").innerHTML=rows.filter((x,i)=>i%2===0).map(x=>{
    const t=String(x.d.getHours()).padStart(2,"0")+":00";
-   return "<div class='row'><span>"+t+"</span><b>"+azLabel(x.p.az)+" / 高度 "+Math.round(x.p.alt)+"°</b></div>";
+   const ta=galacticTiltAt(x.d,lat,lon);
+   return "<div class='row'><span>"+t+"</span><b>"+azLabel(x.p.az)+" / 高度 "+Math.round(x.p.alt)+"° / "+tiltLabel(ta)+"</b></div>";
  }).join("");
 }
 function dayDiffFromToday(dateStr){
@@ -420,7 +445,7 @@ async function getWeather(){
    if(!json.hourly||!json.hourly.time)throw new Error("hourly data missing");
    window.weather=json;$("api").textContent="OK";$("diag").textContent="天気API取得成功。";if($("diagCompact"))$("diagCompact").textContent=$("diag").textContent;
    setForecastStatus("ok","取得済み","天文情報も計算済み");
-   setStatus("☁️ 予報を取得しました。","ok");render();
+   setStatus("☁️ 予報を取得しました。","ok");render();refineBurnDirection().catch(()=>{});
  }catch(e){
    $("api").textContent="NG";$("diag").textContent="APIエラー: "+e.message;if($("diagCompact"))$("diagCompact").textContent=$("diag").textContent;
    setForecastStatus("error","取得エラー","天文情報は利用できます");
@@ -436,11 +461,51 @@ function clearWeatherOnly(){
  $("best").textContent="天文情報を参考に撮影計画を立てられます。";
  const c=$("scoreGraph");if(c){const ctx=c.getContext("2d");ctx.clearRect(0,0,c.width,c.height);}
 }
+
+async function refineBurnDirection(){
+ if(!window.weather)return;
+ const lat=Number($("lat").value),lon=Number($("lon").value),date=$("date").value;
+ const [west,east]=await Promise.all([directionalCloudSample(lat,lon,date,true),directionalCloudSample(lat,lon,date,false)]);
+ const m=moon(date),scores=window.weather.hourly.time.map((_,i)=>hourlyScore(i,m));
+ const ms=Math.max(...scores.map(x=>x.sunsetScore||0)),mr=Math.max(...scores.map(x=>x.sunriseScore||0));
+ const sf=west==null?ms:clamp(ms*(.72+.28*west/100)),rf=east==null?mr:clamp(mr*(.72+.28*east/100));
+ if($("sunsetBurnDetail"))$("sunsetBurnDetail").textContent=Math.round(sf)+" / 100";
+ if($("sunriseBurnDetail"))$("sunriseBurnDetail").textContent=Math.round(rf)+" / 100";
+ if($("burnFactors"))$("burnFactors").textContent="西側の光路 "+(west==null?"取得不可":Math.round(west)+"点")+" / 東側の光路 "+(east==null?"取得不可":Math.round(east)+"点")+"。低層雲は少ないほど有利、中・高層雲は適量をプラス評価。";
+}
+
 function renderCurrent(){const c=window.weather?.current;if(!c)return;$("weatherNow").textContent=weatherLabel(c.weather_code);$("tempNow").textContent=c.temperature_2m+"℃";$("humidityNow").textContent=c.relative_humidity_2m+"%";$("windNow").textContent=c.wind_speed_10m+" km/h";$("cloudNow").textContent=c.cloud_cover+"%";$("rainNow").textContent=c.precipitation+" mm";const base=.55*(100-c.cloud_cover)+.20*clamp((c.visibility||0)/25000*100)+.15*clamp(100-Math.max(0,c.relative_humidity_2m-55)*1.8)+.10*clamp(100-Math.max(0,c.wind_speed_10m-10)*3),wc=weatherCap(c.weather_code,c.precipitation||0,0,c.cloud_cover||0),s=Math.min(base,wc.cap);$("shootNow").textContent=(s>=80?"◎ ":s>=60?"○ ":s>=40?"△ ":"× ")+Math.round(s)+" / 100";$("nowAdvice").textContent=wc.cap<50?"今すぐは撮影非推奨："+wc.reason.join("・"):s>=70?"今すぐ撮影も十分あり。":"今は条件次第。"}
+
+function bell(v,opt,width){return Math.exp(-Math.pow((v-opt)/width,2))}
+function localBurnWeatherScore(low,mid,high,hum,visKm,pop,precip){
+ const lowOpen=clamp(100-low),midScreen=100*bell(mid,38,32),highScreen=100*bell(high,48,36);
+ const screen=.48*highScreen+.32*midScreen+.20*lowOpen;
+ const visibility=clamp(visKm/25*100),humidity=clamp(100-Math.max(0,hum-65)*1.8);
+ const rain=clamp(100-pop*.8-Math.min(precip*120,100));
+ return clamp(.52*screen+.18*visibility+.12*humidity+.18*rain);
+}
+async function directionalCloudSample(lat,lon,date,isSunset){
+ const sign=isSunset?-1:1,cos=Math.max(.25,Math.cos(rad2(lat)));
+ const pts=[25,55].map(km=>({lat,lon:lon+sign*km/(111*cos)}));
+ const d=isSunset?date:nextDateString(date),target=isSunset?18:6,vals=[];
+ for(const p of pts){try{
+  const u="https://api.open-meteo.com/v1/forecast?latitude="+p.lat+"&longitude="+p.lon+"&hourly=cloud_cover_low,cloud_cover_mid,cloud_cover_high,precipitation_probability&timezone=auto&start_date="+d+"&end_date="+d;
+  const r=await fetch(u,{cache:"no-store"});if(!r.ok)continue;const j=await r.json();
+  let idx=0,bd=99;j.hourly.time.forEach((t,i)=>{const x=Math.abs(Number(t.slice(11,13))-target);if(x<bd){bd=x;idx=i}});
+  const lo=j.hourly.cloud_cover_low?.[idx]??100,mi=j.hourly.cloud_cover_mid?.[idx]??0,hi=j.hourly.cloud_cover_high?.[idx]??0,po=j.hourly.precipitation_probability?.[idx]??0;
+  vals.push(clamp((100-lo)*.65+(mi+hi)/2*.25+(100-po)*.10));
+ }catch(e){}}
+ return vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null;
+}
+
 function hourlyScore(i,m){const w=window.weather.hourly,c=w.cloud_cover[i]??100,lo=w.cloud_cover_low[i]??c,md=w.cloud_cover_mid[i]??c,hi=w.cloud_cover_high[i]??c,hum=w.relative_humidity_2m[i]??100,vis=(w.visibility[i]??0)/1000,pop=w.precipitation_probability[i]??0,pr=w.precipitation[i]??0,code=w.weather_code[i]??3,clear=100-(.50*c+.25*lo+.15*md+.10*hi),visibility=clamp(vis/25*100),humidity=clamp(100-Math.max(0,hum-55)*1.8);let star=.45*clear+.20*(100-m.illum*55)+.20*visibility+.15*humidity;const wc=weatherCap(code,pr,pop,c);star=Math.min(clamp(star),wc.cap);const hour=new Date(w.time[i]).getHours();
    const nightFactor=(hour>=21||hour<=4)?1:(hour>=19||hour<=6?0.45:0.08);
-   let milky=star*(1-m.illum*.92)*nightFactor;
-   milky=Math.min(clamp(milky),wc.cap);const burn=clamp(.45*(100-Math.abs(c-35)*2.2)+.25*visibility+.30*(100-Math.abs(hum-65)*1.8));const t=new Date(w.time[i]),se=window.weather.daily?.sunset?.[0]?new Date(window.weather.daily.sunset[0]):null,sr=window.weather.daily?.sunrise?.[1]?new Date(window.weather.daily.sunrise[1]):null;const sunsetScore=clamp(burn*timeProximityScore(t,se,-25,20,45,55)/100),sunriseScore=clamp(burn*timeProximityScore(t,sr,-25,20,55,45)/100);return{star,milky,burn,sunsetScore,sunriseScore,cap:wc.cap,reason:wc.reason,pop}}
+   const gp=galacticCenterAt(new Date(w.hourly.time[i]),Number($("lat").value),Number($("lon").value));
+   const altitudeFactor=gp.alt<=0?0:gp.alt<10?.35:gp.alt<20?.70:gp.alt<=35?1:.95;
+   let milky=star*(1-m.illum*.92)*nightFactor*altitudeFactor;
+   milky=Math.min(clamp(milky),wc.cap);const burn=clamp(.45*(100-Math.abs(c-35)*2.2)+.25*visibility+.30*(100-Math.abs(hum-65)*1.8));const t=new Date(w.time[i]),se=window.weather.daily?.sunset?.[0]?new Date(window.weather.daily.sunset[0]):null,sr=window.weather.daily?.sunrise?.[1]?new Date(window.weather.daily.sunrise[1]):null;const low=w.hourly.cloud_cover_low?.[i]??cloud,mid=w.hourly.cloud_cover_mid?.[i]??0,high=w.hourly.cloud_cover_high?.[i]??0;
+   const localBurn=localBurnWeatherScore(low,mid,high,hum,vis,pop,pr)/100;
+   const sunsetScore=clamp(burn*timeProximityScore(t,se,-25,20,45,55)/100),sunriseScore=clamp(burn*timeProximityScore(t,sr,-25,20,55,45)/100);return{star,milky,burn,sunsetScore,sunriseScore,cap:wc.cap,reason:wc.reason,pop}}
 
 function drawScoreGraph(times,scores){
  const canvas=$("scoreGraph");if(!canvas)return;

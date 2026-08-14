@@ -26,7 +26,7 @@ details>summary{cursor:pointer;font-weight:800;font-size:18px;padding:8px 0}
 details[open]>summary{margin-bottom:8px}
 #otherPlacesContent>.card{margin:10px 0;background:#0d1627}
 
-/* v1.3.2 compact UI */
+/* v1.3.3 compact UI */
 #forecastStatusCard{padding:12px 16px}
 #forecastStatusCard h2{display:none}
 #forecastStatusBox{padding:8px 12px;display:flex;align-items:center;gap:10px;min-height:0}
@@ -35,6 +35,14 @@ details[open]>summary{margin-bottom:8px}
 #diagWrap{margin-top:6px}
 #diagWrap summary{font-size:12px;font-weight:600;color:#9eabc4;padding:3px 0}
 #diagWrap .small{padding:5px 0}
+
+/* v1.3.3 compact connection details */
+#connectionCard{padding:10px 14px}
+#connectionCard>h2{display:none}
+#connectionCard details>summary{font-size:13px;font-weight:700;color:#9eabc4}
+#connectionInner{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+#connectionInner .metric{padding:8px 10px}
+#connectionInner .num{font-size:18px}
 </style>
 <script>(async function(){try{if("serviceWorker"in navigator){const r=await navigator.serviceWorker.getRegistrations();await Promise.all(r.map(x=>x.unregister()))}if("caches"in window){const k=await caches.keys();await Promise.all(k.map(x=>caches.delete(x)))}}catch(e){}})();</script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -77,8 +85,29 @@ details[open]>summary{margin-bottom:8px}
 <div id="galacticTimeline" class="astroTable"></div>
 <p class="small muted">銀河中心（いて座A*付近）の高度・方位を天文計算で推定します。天気予報の有無に関係なく、未来の日付でも計算できます。</p>
 </div>
+
+<div class="card">
+<h2>🧭 方角・天文情報</h2>
+<div class="grid">
+<div class="metric"><div class="muted">日の出</div><div id="sunriseInfo" class="num">--</div></div>
+<div class="metric"><div class="muted">日没</div><div id="sunsetInfo" class="num">--</div></div>
+<div class="metric"><div class="muted">月の出</div><div id="moonriseInfo" class="num">--</div></div>
+<div class="metric"><div class="muted">月の入り</div><div id="moonsetInfo" class="num">--</div></div>
+</div>
+<p class="small muted">時刻＋方位角を表示します。例：東北東 67°。</p>
+</div>
 <div class="card"><h2>🌤️ 現在の天気</h2><div class="grid"><div class="metric">天気<div id="weatherNow" class="num">--</div></div><div class="metric">気温<div id="tempNow" class="num">--</div></div><div class="metric">湿度<div id="humidityNow" class="num">--</div></div><div class="metric">風<div id="windNow" class="num">--</div></div><div class="metric">雲量<div id="cloudNow" class="num">--</div></div><div class="metric">降水<div id="rainNow" class="num">--</div></div></div><div class="row"><span>📷 今すぐ撮影</span><b id="shootNow">-- / 100</b></div><p id="nowAdvice" class="small muted">現在の撮影条件を判定します。</p></div>
-<div class="card"><h2>🔧 接続診断</h2><div class="grid"><div class="metric">GPS<div id="gps" class="num">--</div></div><div class="metric">天気API<div id="api" class="num">--</div></div></div><p id="diag" class="small muted">エラーがあればここに表示します。</p></div>
+<div class="card" id="connectionCard">
+<details>
+<summary>🔧 接続詳細</summary>
+<div id="connectionInner">
+<div class="metric">GPS<div id="gps" class="num">--</div></div>
+<div class="metric">天気API<div id="api" class="num">--</div></div>
+</div>
+<div id="diag" class="small muted">--</div>
+<div id="diagCompact" class="small muted"></div>
+</details>
+</div><div class="metric">天気API<div id="api" class="num">--</div></div></div><p id="diag" class="small muted">エラーがあればここに表示します。</p></div>
 <div class="card"><div class="muted">🔥 今日ここへ行くべき度</div><div id="total" class="score">--</div><div id="verdict" class="badge">---</div><p id="summary" class="muted">---</p></div>
 <div class="card"><h2>🌌 星空・天の川</h2><div class="grid"><div class="metric">星空指数<div id="star" class="num">--</div></div><div class="metric">天の川期待度<div id="milky" class="num">--</div></div></div><div class="row"><span>低層雲</span><b id="lowT">--</b></div><div class="bar"><div id="lowB" class="fill"></div></div><div class="row"><span>中層雲</span><b id="midT">--</b></div><div class="bar"><div id="midB" class="fill"></div></div><div class="row"><span>高層雲</span><b id="highT">--</b></div><div class="bar"><div id="highB" class="fill"></div></div><div class="row"><span>視程</span><b id="visT">--</b></div><div class="row"><span>湿度</span><b id="humT">--</b></div><div class="row"><span>降水確率</span><b id="popT">--</b></div><p id="starReason" class="small muted">雨・厚い雲の時は指数に強い上限をかけます。</p></div>
 <div class="card"><h2>🌙 月</h2><div class="grid"><div class="metric">月齢<div id="age" class="num">--</div></div><div class="metric">月明かり<div id="illum" class="num">--</div></div></div></div>
@@ -128,7 +157,7 @@ details[open]>summary{margin-bottom:8px}
 <script>
 window.addEventListener("error",e=>{const d=document.getElementById("diagCompact");if(d)d.textContent="JSエラー: "+e.message;});
 window.addEventListener("unhandledrejection",e=>{const d=document.getElementById("diagCompact");if(d)d.textContent="Promiseエラー: "+(e.reason?.message||e.reason||"unknown");});
-const APP_VERSION="v1.3.2";
+const APP_VERSION="v1.3.3";
 document.addEventListener("DOMContentLoaded",()=>{
   document.title="STAR GO "+APP_VERSION;
   const el=document.getElementById("appVersion");
@@ -240,6 +269,51 @@ function sunRaDec(d){
 function sunAlt(d,lat,lon){
  const s=sunRaDec(d);return equatorialAltAz(d,lat,lon,s.ra,s.dec).alt;
 }
+
+function findAltitudeCrossing(dateStr,lat,lon,targetAlt,isRising){
+ let prev=null,prevD=null;
+ const start=new Date(dateStr+"T00:00:00");
+ for(let mins=0;mins<=24*60;mins+=2){
+   const d=new Date(start.getTime()+mins*60000),a=sunAlt(d,lat,lon);
+   if(prev!==null){
+     if(isRising && prev<targetAlt && a>=targetAlt)return d;
+     if(!isRising && prev>=targetAlt && a<targetAlt)return d;
+   }
+   prev=a;prevD=d;
+ }
+ return null;
+}
+function sunEventInfo(dateStr,lat,lon){
+ const rise=findAltitudeCrossing(dateStr,lat,lon,-0.833,true);
+ const set=findAltitudeCrossing(dateStr,lat,lon,-0.833,false);
+ function info(d){
+   if(!d)return {text:"--",time:"--",az:null};
+   const s=sunRaDec(d),p=equatorialAltAz(d,lat,lon,s.ra,s.dec);
+   const time=String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+   return {text:time+"　"+azLabel(p.az)+" "+Math.round(p.az)+"°",time,az:p.az};
+ }
+ return {rise:info(rise),set:info(set)};
+}
+function moonEventInfo(dateStr,lat,lon){
+ let rise=null,set=null,last=null;
+ const start=new Date(dateStr+"T00:00:00");
+ for(let mins=0;mins<=24*60;mins+=5){
+   const d=new Date(start.getTime()+mins*60000);
+   const q=approxMoonRaDec(d),p=equatorialAltAz(d,lat,lon,q.ra,q.dec),a=p.alt;
+   if(last!==null){
+     if(last.alt<0&&a>=0&&rise===null)rise={d,p};
+     if(last.alt>=0&&a<0&&set===null)set={d,p};
+   }
+   last={alt:a};
+ }
+ function info(x){
+   if(!x)return {text:"--",time:"--",az:null};
+   const time=String(x.d.getHours()).padStart(2,"0")+":"+String(x.d.getMinutes()).padStart(2,"0");
+   return {text:time+"　"+azLabel(x.p.az)+" "+Math.round(x.p.az)+"°",time,az:x.p.az};
+ }
+ return {rise:info(rise),set:info(set)};
+}
+
 function astronomicalTwilight(dateStr,lat,lon){
  let evening=null,morning=null,last=null;
  const start=new Date(dateStr+"T12:00:00");
@@ -262,6 +336,12 @@ function renderAstronomy(){
  $("astroMoonIllum").textContent=Math.round(m.illum*100)+"%";
  $("astroMoonrise").textContent=me.rise;$("astroMoonset").textContent=me.set;
  $("astroDarkStart").textContent=tw.evening;$("astroDarkEnd").textContent=tw.morning;
+ const se=sunEventInfo(date,lat,lon),mni=moonEventInfo(date,lat,lon);
+ $("sunriseInfo").textContent=se.rise.text;
+ $("sunsetInfo").textContent=se.set.text;
+ $("moonriseInfo").textContent=mni.rise.text;
+ $("moonsetInfo").textContent=mni.set.text;
+
 
  const start=new Date(date+"T18:00:00"),rows=[];
  for(let k=0;k<=12;k++){

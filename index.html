@@ -1,4 +1,4 @@
-<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#080d19"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><title>STAR GO v1.2</title>
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#080d19"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><title>STAR GO</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#080d19;color:#eef3ff;font-family:system-ui,-apple-system,sans-serif}.wrap{max-width:860px;margin:auto;padding:18px}.card{background:#121b2e;border:1px solid #293753;border-radius:18px;padding:18px;margin:12px 0}h1,h2{margin:0 0 8px}.muted{color:#9eabc4}.small{font-size:13px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}input,button{width:100%;padding:11px;margin-top:6px;border-radius:10px;border:1px solid #35445f;background:#0c1424;color:#fff}button{background:#91aaff;color:#08101e;font-weight:800;border:0}.secondary{background:#263653;color:#fff}.score{font-size:64px;font-weight:900}.badge{display:inline-block;background:#263653;border-radius:999px;padding:7px 12px}.metric{background:#0c1424;border-radius:12px;padding:12px}.num{font-size:26px;font-weight:800}.row{display:flex;justify-content:space-between;gap:12px;margin:9px 0}.bar{height:9px;background:#28344d;border-radius:8px;overflow:hidden}.fill{height:100%;background:#91aaff}.ok{color:#b8ffc8}.warn{color:#ffe09b}.err{color:#ff9f9f}.rank{padding:8px 0;border-bottom:1px solid #25324a}.rank:last-child{border-bottom:0}@media(max-width:560px){.grid{grid-template-columns:1fr 1fr}.score{font-size:50px}}
 
@@ -18,7 +18,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>#map{height:360px;border-radius:14px;margin-top:10px}.mapActions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}</style>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script></head><body><div class="wrap">
-<h1>📷 STAR GO <span class="muted">v0.8</span></h1><p class="muted">撮影スポットDB＋30分圏内の代替候補検索</p>
+<h1>📷 STAR GO <span class="muted"><span id="appVersion"></span></span></h1><p class="muted">撮影スポットDB＋30分圏内の代替候補検索</p>
 <div class="card"><h2>📍 撮影地点</h2><div class="grid"><div>緯度<input id="lat" value="35.4437"></div><div>経度<input id="lon" value="139.6380"></div><div>日付<input id="date" type="date">
 <div class="dateQuick">
 <button type="button" id="prevDay" class="secondary mini">← 前日</button>
@@ -69,6 +69,14 @@
 <div class="card"><h2>🌌 今夜の撮影おすすめ時間</h2><div id="ranking">予報取得後に表示します。</div></div>
 <div class="card"><h2>🎯 今日の狙い目</h2><div id="best" class="metric">予報を取得してください。</div></div>
 </div>
+<script>
+const APP_VERSION="v1.2.1";
+document.addEventListener("DOMContentLoaded",()=>{
+  document.title="STAR GO "+APP_VERSION;
+  const el=document.getElementById("appVersion");
+  if(el) el.textContent=APP_VERSION;
+});
+</script>
 <script>
 const $=id=>document.getElementById(id),clamp=x=>Math.max(0,Math.min(100,x)),avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
 const now=new Date();$("date").value=new Date(now-now.getTimezoneOffset()*60000).toISOString().slice(0,10);

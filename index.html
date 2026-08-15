@@ -26,7 +26,7 @@ details>summary{cursor:pointer;font-weight:800;font-size:18px;padding:8px 0}
 details[open]>summary{margin-bottom:8px}
 #otherPlacesContent>.card{margin:10px 0;background:#0d1627}
 
-/* v1.4.2 compact UI */
+/* v1.4.3 compact UI */
 #forecastStatusCard{padding:12px 16px}
 #forecastStatusCard h2{display:none}
 #forecastStatusBox{padding:8px 12px;display:flex;align-items:center;gap:10px;min-height:0}
@@ -36,7 +36,7 @@ details[open]>summary{margin-bottom:8px}
 #diagWrap summary{font-size:12px;font-weight:600;color:#9eabc4;padding:3px 0}
 #diagWrap .small{padding:5px 0}
 
-/* v1.4.2 compact connection details */
+/* v1.4.3 compact connection details */
 #connectionCard{padding:10px 14px}
 #connectionCard>h2{display:none}
 #connectionCard details>summary{font-size:13px;font-weight:700;color:#9eabc4}
@@ -170,7 +170,7 @@ details[open]>summary{margin-bottom:8px}
 <script>
 window.addEventListener("error",e=>{const d=document.getElementById("diagCompact");if(d)d.textContent="JSエラー: "+e.message;});
 window.addEventListener("unhandledrejection",e=>{const d=document.getElementById("diagCompact");if(d)d.textContent="Promiseエラー: "+(e.reason?.message||e.reason||"unknown");});
-const APP_VERSION="v1.4.2";
+const APP_VERSION="v1.4.3";
 document.addEventListener("DOMContentLoaded",()=>{
   document.title="STAR GO "+APP_VERSION;
   const el=document.getElementById("appVersion");
@@ -412,6 +412,57 @@ function weatherLabel(c){if(c===0)return"☀️ 快晴";if(c===1)return"🌤️ 
 function weatherCap(code,precip,pop,cloud){let cap=100,reason=[];if([95,96,99].includes(code)){cap=Math.min(cap,5);reason.push("雷雨")}else if([65,67,82].includes(code)||precip>=7){cap=Math.min(cap,5);reason.push("大雨")}else if([61,63,66,80,81].includes(code)||precip>=1){cap=Math.min(cap,12);reason.push("降雨")}else if([51,53,55,56,57].includes(code)){cap=Math.min(cap,18);reason.push("霧雨")}if(code===45||code===48){cap=Math.min(cap,15);reason.push("霧")}if(pop>=80){cap=Math.min(cap,15);reason.push("降水確率80%以上")}else if(pop>=60){cap=Math.min(cap,30);reason.push("降水確率60%以上")}if(cloud>=95){cap=Math.min(cap,10);reason.push("雲量95%以上")}else if(cloud>=85){cap=Math.min(cap,22);reason.push("雲量85%以上")}else if(cloud>=70){cap=Math.min(cap,45);reason.push("雲量70%以上")}return{cap,reason}}
 $("loc").onclick=()=>{$("gps").textContent="取得中";if(!window.isSecureContext){$("gps").textContent="NG";$("diag").textContent="HTTPSではありません。";return}navigator.geolocation.getCurrentPosition(p=>{$("lat").value=p.coords.latitude.toFixed(5);$("lon").value=p.coords.longitude.toFixed(5);$("place").value="現在地";$("gps").textContent="OK";$("diag").textContent="GPS取得成功。";if($("diagCompact"))$("diagCompact").textContent=$("diag").textContent;setStatus("📍 現在地を取得しました。","ok");renderAstronomy();getWeather()},e=>{$("gps").textContent="NG";$("diag").textContent="GPS error code: "+e.code;if($("diagCompact"))$("diagCompact").textContent=$("diag").textContent;setStatus("位置情報を取得できませんでした。","warn")},{enableHighAccuracy:true,timeout:15000,maximumAge:300000})};
 $("load").onclick=getWeather;
+
+function ensureArray(src,key,len,fallback){
+ const arr=Array.isArray(src?.[key])?src[key]:[];
+ const out=new Array(len);
+ for(let i=0;i<len;i++){
+   const v=arr[i];
+   out[i]=(v===null||v===undefined||Number.isNaN(Number(v)))?fallback(i):Number(v);
+ }
+ return out;
+}
+
+function normalizeWeatherData(json){
+ const hourly=json?.hourly;
+ if(!hourly || !Array.isArray(hourly.time) || hourly.time.length===0){
+   throw new Error("天気API応答不備: hourly.time がありません");
+ }
+ const n=hourly.time.length;
+ const totalCloud=ensureArray(hourly,"cloud_cover",n,()=>100);
+
+ const normalized={
+   ...json,
+   hourly:{
+     ...hourly,
+     time:[...hourly.time],
+     cloud_cover:totalCloud,
+     cloud_cover_low:ensureArray(hourly,"cloud_cover_low",n,i=>totalCloud[i]),
+     cloud_cover_mid:ensureArray(hourly,"cloud_cover_mid",n,i=>Math.max(0,totalCloud[i]*0.35)),
+     cloud_cover_high:ensureArray(hourly,"cloud_cover_high",n,i=>Math.max(0,totalCloud[i]*0.25)),
+     relative_humidity_2m:ensureArray(hourly,"relative_humidity_2m",n,()=>75),
+     visibility:ensureArray(hourly,"visibility",n,()=>10000),
+     precipitation_probability:ensureArray(hourly,"precipitation_probability",n,()=>0),
+     precipitation:ensureArray(hourly,"precipitation",n,()=>0),
+     weather_code:ensureArray(hourly,"weather_code",n,()=>3)
+   }
+ };
+
+ const c=json?.current||{};
+ normalized.current={
+   ...c,
+   temperature_2m:Number.isFinite(Number(c.temperature_2m))?Number(c.temperature_2m):0,
+   relative_humidity_2m:Number.isFinite(Number(c.relative_humidity_2m))?Number(c.relative_humidity_2m):75,
+   weather_code:Number.isFinite(Number(c.weather_code))?Number(c.weather_code):3,
+   cloud_cover:Number.isFinite(Number(c.cloud_cover))?Number(c.cloud_cover):100,
+   wind_speed_10m:Number.isFinite(Number(c.wind_speed_10m))?Number(c.wind_speed_10m):0,
+   visibility:Number.isFinite(Number(c.visibility))?Number(c.visibility):10000,
+   precipitation:Number.isFinite(Number(c.precipitation))?Number(c.precipitation):0
+ };
+
+ return normalized;
+}
+
 async function getWeather(){
  const lat=Number($("lat").value),lon=Number($("lon").value),date=$("date").value;
  renderAstronomy();
@@ -471,12 +522,12 @@ async function getWeather(){
      throw new Error("天気API応答不備: "+reason);
    }
 
-   window.weather=json;
+   window.weather=normalizeWeatherData(json);
 
    $("api").textContent="OK";
-   $("diag").textContent="天気API取得成功。"+json.hourly.time.length+"時間分";
+   $("diag").textContent="天気API取得成功。"+window.weather.hourly.time.length+"時間分";
    if($("diagCompact"))$("diagCompact").textContent=$("diag").textContent;
-   setForecastStatus("ok","取得済み","天文情報も計算済み");
+   setForecastStatus("ok","取得済み","天気データ正規化済み・天文情報も計算済み");
    setStatus("☁️ 予報を取得しました。","ok");
 
    // Core rendering gets its own boundary. Burn refinement can never break this.
@@ -588,7 +639,7 @@ const w=window.weather.hourly,c=w.cloud_cover[i]??100,lo=w.cloud_cover_low[i]??c
    const gp=galacticCenterAt(new Date(w?.hourly?.time?.[i]),Number($("lat").value),Number($("lon").value));
    const altitudeFactor=gp.alt<=0?0:gp.alt<10?.35:gp.alt<20?.70:gp.alt<=35?1:.95;
    let milky=star*(1-m.illum*.92)*nightFactor*altitudeFactor;
-   milky=Math.min(clamp(milky),wc.cap);const burn=clamp(.45*(100-Math.abs(c-35)*2.2)+.25*visibility+.30*(100-Math.abs(hum-65)*1.8));const t=new Date(w.time[i]),se=window.weather.daily?.sunset?.[0]?new Date(window.weather.daily.sunset[0]):null,sr=window.weather.daily?.sunrise?.[1]?new Date(window.weather.daily.sunrise[1]):null;const low=w.hourly.cloud_cover_low?.[i]??cloud,mid=w.hourly.cloud_cover_mid?.[i]??0,high=w.hourly.cloud_cover_high?.[i]??0;
+   milky=Math.min(clamp(milky),wc.cap);const burn=clamp(.45*(100-Math.abs(c-35)*2.2)+.25*visibility+.30*(100-Math.abs(hum-65)*1.8));const t=new Date(w.time[i]),se=window.weather.daily?.sunset?.[0]?new Date(window.weather.daily.sunset[0]):null,sr=window.weather.daily?.sunrise?.[1]?new Date(window.weather.daily.sunrise[1]):null;const low=w?.hourly?.cloud_cover_low?.[i]??cloud,mid=w?.hourly?.cloud_cover_mid?.[i]??0,high=w?.hourly?.cloud_cover_high?.[i]??0;
    const localBurn=localBurnWeatherScore(low,mid,high,hum,vis,pop,pr)/100;
    const sunsetScore=clamp(burn*timeProximityScore(t,se,-25,20,45,55)/100),sunriseScore=clamp(burn*timeProximityScore(t,sr,-25,20,55,45)/100);return{star,milky,burn,sunsetScore,sunriseScore,cap:wc.cap,reason:wc.reason,pop}}
 
@@ -660,7 +711,7 @@ function render(){
  if(!weather?.hourly || !Array.isArray(weather.hourly.time) || weather.hourly.time.length===0){
    throw new Error("render: hourly.time がありません");
  }
-renderCurrent();const w=window.weather;const m=moon($("date").value);$("age").textContent=m.age.toFixed(1);$("illum").textContent=Math.round(m.illum*100)+"%";const scores=(w?.hourly?.time||[]).map((_,i)=>hourlyScore(i,m)),night=scores.filter((x,i)=>{const t=new Date(w?.hourly?.time?.[i]),a=new Date($("date").value+"T18:00:00"),b=new Date(nextDateString($("date").value)+"T06:00:00");return t>=a&&t<=b}),star=avg(night.map(x=>x.star)),milky=avg(night.map(x=>x.milky)),burn=avg(scores.map(x=>x.burn));drawScoreGraph(w.hourly.time,scores);$("star").textContent=Math.round(star);$("milky").textContent=Math.round(milky);$("sunset").textContent=Math.round(Math.max(...scores.map(x=>x.sunsetScore||0)));$("sunrise").textContent=Math.round(Math.max(...scores.map(x=>x.sunriseScore||0)));let i0=(w?.hourly?.time||[]).findIndex(t=>t.slice(11,13)==="22");if(i0<0)i0=0;const lo=avg(w.hourly.cloud_cover_low.slice(i0,i0+6)),md=avg(w.hourly.cloud_cover_mid.slice(i0,i0+6)),hi=avg(w.hourly.cloud_cover_high.slice(i0,i0+6));$("lowT").textContent=Math.round(lo)+"%";$("midT").textContent=Math.round(md)+"%";$("highT").textContent=Math.round(hi)+"%";$("lowB").style.width=lo+"%";$("midB").style.width=md+"%";$("highB").style.width=hi+"%";$("visT").textContent=Math.round(avg(w.hourly.visibility.slice(i0,i0+6))/1000)+" km";$("humT").textContent=Math.round(avg(w.hourly.relative_humidity_2m.slice(i0,i0+6)))+"%";$("popT").textContent=Math.round(avg(w.hourly.precipitation_probability.slice(i0,i0+6)))+"%";const worst=night.reduce((a,b)=>b.cap<a.cap?b:a,night[0]||{cap:100,reason:[]});$("starReason").textContent=worst&&worst.cap<50?"強い減点："+worst.reason.join("・"):"雨・厚い雲の時は指数に強い上限をかけます。";const total=.55*star+.20*milky+.25*burn;$("total").textContent=Math.round(total);$("verdict").textContent=total>=85?"🔥 出撃推奨":total>=70?"👍 行く価値あり":total>=50?"🤔 条件次第":"🛑 見送り寄り";$("summary").textContent=total>=85?"かなり狙い目。":total>=70?"十分チャンスあり。":total>=50?"時間を絞れば可能性あり。":"今回は見送り寄り。";const ranked=[];scores.forEach((x,i)=>{const t=new Date(w?.hourly?.time?.[i]),a=new Date($("date").value+"T18:00:00"),b=new Date(nextDateString($("date").value)+"T06:00:00");if(t>=a&&t<=b)ranked.push({i,v:x.star,m:x.milky})});ranked.sort((a,b)=>b.v-a.v);$("ranking").innerHTML=ranked.slice(0,5).map((r,k)=>{const i=r.i,c=w.hourly.cloud_cover[i]??0,p=w.hourly.precipitation_probability[i]??0;const label=r.v>=80?"かなり良い":r.v>=65?"良い":r.v>=45?"条件次第":"厳しい";return "<div class='rank'><b>"+(k+1)+"位　"+w?.hourly?.time?.[i].slice(11,16)+"　"+Math.round(r.v)+"点「"+label+"」</b><br><span class='small muted'>☁️ 雲 "+Math.round(c)+"%　🌧️ 降水 "+Math.round(p)+"%　🌠 天の川 "+Math.round(r.m)+"</span></div>"}).join("");if(ranked.length){const r=ranked[0];$("best").innerHTML="<b>"+w.hourly.time[r.i].slice(11,16)+"</b>　🌌 星空 "+Math.round(r.v)+"/100　🌠 天の川 "+Math.round(r.m)+"/100"}}
+renderCurrent();const w=window.weather;const m=moon($("date").value);$("age").textContent=m.age.toFixed(1);$("illum").textContent=Math.round(m.illum*100)+"%";const scores=(w?.hourly?.time||[]).map((_,i)=>hourlyScore(i,m)),night=scores.filter((x,i)=>{const t=new Date(w?.hourly?.time?.[i]),a=new Date($("date").value+"T18:00:00"),b=new Date(nextDateString($("date").value)+"T06:00:00");return t>=a&&t<=b}),star=avg(night.map(x=>x.star)),milky=avg(night.map(x=>x.milky)),burn=avg(scores.map(x=>x.burn));drawScoreGraph(w.hourly.time,scores);$("star").textContent=Math.round(star);$("milky").textContent=Math.round(milky);$("sunset").textContent=Math.round(Math.max(...scores.map(x=>x.sunsetScore||0)));$("sunrise").textContent=Math.round(Math.max(...scores.map(x=>x.sunriseScore||0)));let i0=(w?.hourly?.time||[]).findIndex(t=>t.slice(11,13)==="22");if(i0<0)i0=0;const lo=avg((w?.hourly?.cloud_cover_low||[]).slice(i0,i0+6)),md=avg((w?.hourly?.cloud_cover_mid||[]).slice(i0,i0+6)),hi=avg((w?.hourly?.cloud_cover_high||[]).slice(i0,i0+6));$("lowT").textContent=Math.round(lo)+"%";$("midT").textContent=Math.round(md)+"%";$("highT").textContent=Math.round(hi)+"%";$("lowB").style.width=lo+"%";$("midB").style.width=md+"%";$("highB").style.width=hi+"%";$("visT").textContent=Math.round(avg((w?.hourly?.visibility||[]).slice(i0,i0+6))/1000)+" km";$("humT").textContent=Math.round(avg((w?.hourly?.relative_humidity_2m||[]).slice(i0,i0+6)))+"%";$("popT").textContent=Math.round(avg((w?.hourly?.precipitation_probability||[]).slice(i0,i0+6)))+"%";const worst=night.reduce((a,b)=>b.cap<a.cap?b:a,night[0]||{cap:100,reason:[]});$("starReason").textContent=worst&&worst.cap<50?"強い減点："+worst.reason.join("・"):"雨・厚い雲の時は指数に強い上限をかけます。";const total=.55*star+.20*milky+.25*burn;$("total").textContent=Math.round(total);$("verdict").textContent=total>=85?"🔥 出撃推奨":total>=70?"👍 行く価値あり":total>=50?"🤔 条件次第":"🛑 見送り寄り";$("summary").textContent=total>=85?"かなり狙い目。":total>=70?"十分チャンスあり。":total>=50?"時間を絞れば可能性あり。":"今回は見送り寄り。";const ranked=[];scores.forEach((x,i)=>{const t=new Date(w?.hourly?.time?.[i]),a=new Date($("date").value+"T18:00:00"),b=new Date(nextDateString($("date").value)+"T06:00:00");if(t>=a&&t<=b)ranked.push({i,v:x.star,m:x.milky})});ranked.sort((a,b)=>b.v-a.v);$("ranking").innerHTML=ranked.slice(0,5).map((r,k)=>{const i=r.i,c=w?.hourly?.cloud_cover[i]??0,p=w?.hourly?.precipitation_probability[i]??0;const label=r.v>=80?"かなり良い":r.v>=65?"良い":r.v>=45?"条件次第":"厳しい";return "<div class='rank'><b>"+(k+1)+"位　"+w?.hourly?.time?.[i].slice(11,16)+"　"+Math.round(r.v)+"点「"+label+"」</b><br><span class='small muted'>☁️ 雲 "+Math.round(c)+"%　🌧️ 降水 "+Math.round(p)+"%　🌠 天の川 "+Math.round(r.m)+"</span></div>"}).join("");if(ranked.length){const r=ranked[0];$("best").innerHTML="<b>"+w.hourly.time[r.i].slice(11,16)+"</b>　🌌 星空 "+Math.round(r.v)+"/100　🌠 天の川 "+Math.round(r.m)+"/100"}}
 
 
 const SPOTS=[{"name": "精進湖 他手合浜", "lat": 35.4918, "lon": 138.6087, "cats": ["stars", "milky", "sunrise"]}, {"name": "本栖湖 浩庵周辺", "lat": 35.4616, "lon": 138.574, "cats": ["stars", "milky", "sunrise"]}, {"name": "本栖湖 展望公園周辺", "lat": 35.4658, "lon": 138.5884, "cats": ["stars", "milky", "sunrise"]}, {"name": "西湖 根場浜", "lat": 35.5017, "lon": 138.6657, "cats": ["stars", "milky"]}, {"name": "河口湖 大石公園", "lat": 35.5228, "lon": 138.7465, "cats": ["sunset", "stars"]}, {"name": "山中湖 平野の浜", "lat": 35.4258, "lon": 138.8988, "cats": ["sunrise", "stars", "milky"]}, {"name": "山中湖 長池親水公園", "lat": 35.4388, "lon": 138.8677, "cats": ["sunset", "stars"]}, {"name": "パノラマ台 山中湖", "lat": 35.4162, "lon": 138.9145, "cats": ["sunrise", "stars"]}, {"name": "新道峠 FUJIYAMAツインテラス周辺", "lat": 35.5536, "lon": 138.7355, "cats": ["sunrise", "sunset", "stars"]}, {"name": "田貫湖", "lat": 35.3435, "lon": 138.5606, "cats": ["sunrise", "stars", "milky"]}, {"name": "朝霧高原", "lat": 35.372, "lon": 138.5895, "cats": ["stars", "milky"]}, {"name": "宮ヶ瀬湖 鳥居原園地", "lat": 35.5395, "lon": 139.2223, "cats": ["sunset", "stars"]}, {"name": "城ヶ島", "lat": 35.134, "lon": 139.6177, "cats": ["sunset", "stars", "milky"]}, {"name": "剱崎", "lat": 35.1415, "lon": 139.6772, "cats": ["sunrise", "stars", "milky"]}, {"name": "観音崎", "lat": 35.2566, "lon": 139.745, "cats": ["sunrise", "stars"]}, {"name": "湘南平", "lat": 35.3307, "lon": 139.3075, "cats": ["sunset", "stars"]}, {"name": "稲村ヶ崎", "lat": 35.3037, "lon": 139.5231, "cats": ["sunset"]}, {"name": "七里ヶ浜", "lat": 35.3061, "lon": 139.5103, "cats": ["sunset"]}, {"name": "真鶴岬", "lat": 35.1414, "lon": 139.1622, "cats": ["sunrise", "stars"]}, {"name": "大観山", "lat": 35.2173, "lon": 139.0427, "cats": ["sunrise", "sunset", "stars"]}, {"name": "野島崎", "lat": 34.901, "lon": 139.8883, "cats": ["sunrise", "stars", "milky"]}, {"name": "洲崎", "lat": 34.9717, "lon": 139.7587, "cats": ["sunset", "stars", "milky"]}, {"name": "九十九里浜 片貝海岸", "lat": 35.533, "lon": 140.459, "cats": ["sunrise", "stars"]}, {"name": "犬吠埼", "lat": 35.7073, "lon": 140.868, "cats": ["sunrise", "stars"]}, {"name": "屏風ヶ浦", "lat": 35.699, "lon": 140.783, "cats": ["sunset", "stars"]}, {"name": "大洗磯前神社 神磯の鳥居周辺", "lat": 36.3152, "lon": 140.5895, "cats": ["sunrise", "stars"]}, {"name": "霞ヶ浦 天王崎公園", "lat": 36.012, "lon": 140.484, "cats": ["sunset", "stars"]}, {"name": "筑波山 つつじヶ丘周辺", "lat": 36.213, "lon": 140.107, "cats": ["sunrise", "sunset", "stars"]}, {"name": "奥多摩湖", "lat": 35.7885, "lon": 139.0485, "cats": ["stars", "milky"]}, {"name": "都民の森周辺", "lat": 35.7375, "lon": 139.048, "cats": ["stars", "milky"]}, {"name": "秩父ミューズパーク", "lat": 35.9964, "lon": 139.047, "cats": ["sunset", "stars"]}, {"name": "美の山公園", "lat": 36.0606, "lon": 139.1007, "cats": ["sunrise", "stars"]}, {"name": "堂平山", "lat": 36.0069, "lon": 139.1948, "cats": ["sunset", "stars", "milky"]}, {"name": "赤城山 大沼", "lat": 36.5518, "lon": 139.181, "cats": ["stars", "milky"]}, {"name": "榛名湖", "lat": 36.476, "lon": 138.873, "cats": ["sunset", "stars"]}, {"name": "野反湖", "lat": 36.6908, "lon": 138.645, "cats": ["stars", "milky"]}];

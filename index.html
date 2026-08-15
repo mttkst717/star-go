@@ -26,7 +26,7 @@ details>summary{cursor:pointer;font-weight:800;font-size:18px;padding:8px 0}
 details[open]>summary{margin-bottom:8px}
 #otherPlacesContent>.card{margin:10px 0;background:#0d1627}
 
-/* v1.7.2 compact UI */
+/* v1.8.0 compact UI */
 #forecastStatusCard{padding:12px 16px}
 #forecastStatusCard h2{display:none}
 #forecastStatusBox{padding:8px 12px;display:flex;align-items:center;gap:10px;min-height:0}
@@ -36,7 +36,7 @@ details[open]>summary{margin-bottom:8px}
 #diagWrap summary{font-size:12px;font-weight:600;color:#9eabc4;padding:3px 0}
 #diagWrap .small{padding:5px 0}
 
-/* v1.7.2 compact connection details */
+/* v1.8.0 compact connection details */
 #connectionCard{padding:10px 14px}
 #connectionCard>h2{display:none}
 #connectionCard details>summary{font-size:13px;font-weight:700;color:#9eabc4}
@@ -52,7 +52,7 @@ details[open]>summary{margin-bottom:8px}
 }
 #toastMsg.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-/* v1.7.2 safe responsive UI */
+/* v1.8.0 safe responsive UI */
 .wrap{width:min(1180px,calc(100% - 32px));max-width:1180px;margin:0 auto;padding:16px 0 32px}
 .card{width:100%;box-sizing:border-box;margin:10px 0}
 .card.collapsible{padding:0;overflow:hidden}
@@ -87,7 +87,7 @@ details[open]>summary{margin-bottom:8px}
 #card-today #verdict{vertical-align:middle}
 #card-today #summary{margin:8px 0 0}
 
-/* v1.7.2 condition summary */
+/* v1.8.0 condition summary */
 .conditionGrid{
  display:grid;grid-template-columns:repeat(4,1fr);gap:10px
 }
@@ -112,7 +112,7 @@ details[open]>summary{margin-bottom:8px}
 
 #card-conditions{width:100%}
 
-/* v1.7.2 decision support */
+/* v1.8.0 decision support */
 #card-conditions{order:initial}
 .decisionSupport{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
 .supportBox{background:#0c1424;border:1px solid #263653;border-radius:14px;padding:12px}
@@ -131,6 +131,14 @@ details[open]>summary{margin-bottom:8px}
  .decisionSupport{grid-template-columns:1fr}
  .evidenceGrid{grid-template-columns:1fr 1fr}
 }
+
+.forecastConfidence{
+ margin-top:10px;padding:10px 12px;border:1px solid #263653;border-radius:12px;background:#0c1424
+}
+.confidenceLine{display:flex;align-items:baseline;gap:10px;margin-top:2px}
+.confidenceLine strong{font-size:20px}
+.confidenceLine span{font-size:13px;color:#c8d3ea}
+.confidenceHigh{color:#8ce6a8}.confidenceMid{color:#ffd166}.confidenceLow{color:#ff8f8f}
 </style>
 <script>(async function(){try{if("serviceWorker"in navigator){const r=await navigator.serviceWorker.getRegistrations();await Promise.all(r.map(x=>x.unregister()))}if("caches"in window){const k=await caches.keys();await Promise.all(k.map(x=>caches.delete(x)))}}catch(e){}})();</script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -175,6 +183,17 @@ details[open]>summary{margin-bottom:8px}
 </div>
 </div>
 <p class="small muted">0〜19 厳しい / 20〜39 期待薄 / 40〜59 条件次第 / 60〜79 良好 / 80〜100 絶好</p>
+<div class="forecastConfidence">
+ <div>
+  <div class="conditionName">🛰️ 予報信頼度</div>
+  <div class="confidenceLine">
+   <strong id="forecastConfidenceValue">-- / 100</strong>
+   <span id="forecastConfidenceLabel">比較中</span>
+  </div>
+  <div class="small muted" id="forecastConfidenceModels">Best Matchを基準に複数モデルを比較します。</div>
+ </div>
+</div>
+
 <div class="decisionSupport">
  <div class="supportBox">
   <div class="supportTitle">🌇 焼ける方向</div>
@@ -296,7 +315,7 @@ details[open]>summary{margin-bottom:8px}
 <script>
 window.addEventListener("error",e=>{const d=document.getElementById("diagCompact");if(d)d.textContent="JSエラー: "+e.message;});
 window.addEventListener("unhandledrejection",e=>{const d=document.getElementById("diagCompact");if(d)d.textContent="Promiseエラー: "+(e.reason?.message||e.reason||"unknown");});
-const APP_VERSION="v1.7.2";
+const APP_VERSION="v1.8.0";
 document.addEventListener("DOMContentLoaded",()=>{
   document.title="STAR GO "+APP_VERSION;
   const el=document.getElementById("appVersion");
@@ -667,6 +686,120 @@ function normalizeWeatherData(json){
  return normalized;
 }
 
+
+function confidenceLabel(v){
+ if(!Number.isFinite(v))return "比較不可";
+ if(v>=80)return "高い";
+ if(v>=60)return "まずまず";
+ if(v>=40)return "低め";
+ return "かなり不確実";
+}
+function setConfidenceUI(value,label,models){
+ const v=$("forecastConfidenceValue"),l=$("forecastConfidenceLabel"),m=$("forecastConfidenceModels");
+ if(v){
+   v.textContent=Number.isFinite(value)?Math.round(value)+" / 100":"-- / 100";
+   v.className=Number.isFinite(value)?(value>=80?"confidenceHigh":value>=60?"confidenceMid":"confidenceLow"):"";
+ }
+ if(l)l.textContent=label||confidenceLabel(value);
+ if(m)m.textContent=models||"モデル比較データなし";
+}
+function alignModelToBase(baseTimes,model){
+ const map=new Map();
+ const times=model?.hourly?.time||[];
+ times.forEach((t,i)=>map.set(t,i));
+ return baseTimes.map(t=>map.has(t)?map.get(t):-1);
+}
+async function fetchForecastModel(lat,lon,date,candidates){
+ for(const model of candidates){
+  try{
+   const url="https://api.open-meteo.com/v1/forecast"+
+    "?latitude="+encodeURIComponent(lat)+
+    "&longitude="+encodeURIComponent(lon)+
+    "&hourly=cloud_cover,precipitation,relative_humidity_2m"+
+    "&timezone=auto"+
+    "&models="+encodeURIComponent(model)+
+    "&start_date="+encodeURIComponent(date)+
+    "&end_date="+encodeURIComponent(nextDateString(date));
+   const r=await fetch(url,{cache:"no-store"});
+   if(!r.ok)continue;
+   const j=await r.json();
+   if(Array.isArray(j?.hourly?.time)&&j.hourly.time.length){
+    return {name:model,data:j};
+   }
+  }catch(e){}
+ }
+ return null;
+}
+function computeModelConfidence(base,jma,ecmwf,date){
+ const times=base?.hourly?.time||[];
+ if(!times.length)return null;
+ const a=new Date(date+"T18:00:00"),b=new Date(nextDateString(date)+"T06:00:00");
+ const models=[{name:"Best Match",data:base}];
+ if(jma)models.push(jma);
+ if(ecmwf)models.push(ecmwf);
+ if(models.length<2)return {score:null,names:models.map(x=>x.name),hours:0};
+
+ const aligned=models.map(x=>({name:x.name,data:x.data,idx:alignModelToBase(times,x.data)}));
+ let penalties=[],hours=0;
+
+ times.forEach((t,i)=>{
+  const dt=new Date(t);if(dt<a||dt>b)return;
+  const clouds=[],rains=[],hums=[];
+  aligned.forEach(x=>{
+   const k=x.idx[i];
+   if(k<0)return;
+   const c=Number(x.data?.hourly?.cloud_cover?.[k]);
+   const p=Number(x.data?.hourly?.precipitation?.[k]);
+   const hu=Number(x.data?.hourly?.relative_humidity_2m?.[k]);
+   if(Number.isFinite(c))clouds.push(c);
+   if(Number.isFinite(p))rains.push(p);
+   if(Number.isFinite(hu))hums.push(hu);
+  });
+  if(clouds.length<2)return;
+  const spread=arr=>Math.max(...arr)-Math.min(...arr);
+  // Cloud disagreement dominates astrophotography; rain and humidity are secondary.
+  const cloudPenalty=spread(clouds)*0.78;
+  const rainPenalty=rains.length>=2?Math.min(20,spread(rains)*8):0;
+  const humPenalty=hums.length>=2?spread(hums)*0.18:0;
+  penalties.push(clamp(cloudPenalty+rainPenalty+humPenalty));
+  hours++;
+ });
+
+ if(!penalties.length)return {score:null,names:models.map(x=>x.name),hours:0};
+ const meanPenalty=avg(penalties);
+ return {score:clamp(100-meanPenalty),names:models.map(x=>x.name),hours};
+}
+async function updateMultiModelConfidence(){
+ const date=$("date").value,lat=Number($("lat").value),lon=Number($("lon").value);
+ if(!window.weather?.hourly?.time?.length)return;
+ setConfidenceUI(NaN,"比較中","JMA / ECMWF と比較しています…");
+
+ const [jma,ecmwf]=await Promise.all([
+  fetchForecastModel(lat,lon,date,["jma_seamless","jma_msm","jma_gsm"]),
+  fetchForecastModel(lat,lon,date,["ecmwf_ifs","ecmwf_ifs025"])
+ ]);
+
+ const result=computeModelConfidence(window.weather,jma,ecmwf,date);
+ if(!result||!Number.isFinite(result.score)){
+  const names=["Best Match"];
+  if(jma)names.push("JMA");
+  if(ecmwf)names.push("ECMWF");
+  setConfidenceUI(NaN,"比較データ不足",names.join(" + "));
+  return;
+ }
+
+ const displayNames=["Best Match"];
+ if(jma)displayNames.push("JMA");
+ if(ecmwf)displayNames.push("ECMWF");
+ const note=result.score>=80?"モデルがよく一致しています":
+            result.score>=60?"一部ばらつきがあります":
+            result.score>=40?"モデル間の差が大きめです":
+            "予報がかなり割れています";
+ setConfidenceUI(result.score,confidenceLabel(result.score),
+   displayNames.join(" + ")+"｜"+result.hours+"時間比較｜"+note);
+ window.modelConfidence=result;
+}
+
 async function getWeather(){
  const lat=Number($("lat").value),lon=Number($("lon").value),date=$("date").value;
  renderAstronomy();
@@ -737,10 +870,10 @@ async function getWeather(){
    // Core rendering gets its own boundary. Burn refinement can never break this.
    try{
      if($("diagStage"))$("diagStage").textContent="段階: メイン表示処理";
-     render();
+     render();setTimeout(()=>updateMultiModelConfidence(),50);
    }catch(renderError){
      console.error("core render error",renderError);
-     $("diag").textContent="表示処理エラー: "+renderError.message+"（v1.7.2）";
+     $("diag").textContent="表示処理エラー: "+renderError.message+"（v1.8.0）";
      if($("diagCompact"))$("diagCompact").textContent=$("diag").textContent;
      setForecastStatus("error","表示処理エラー","天気データ自体は取得できています。");
      return;
@@ -763,6 +896,7 @@ async function getWeather(){
  }
 }
 function clearWeatherOnly(){
+ setConfidenceUI(NaN,"予報なし","天文情報のみ表示");
  updateConditionSummary(NaN,NaN,NaN,NaN);
  window.weather=null;
  ["weatherNow","tempNow","humidityNow","windNow","cloudNow","rainNow","shootNow","total","star","milky","sunset","sunrise","lowT","midT","highT","visT","humT","popT"].forEach(id=>{const e=$(id);if(e)e.textContent="--"});
@@ -1011,7 +1145,11 @@ function updateDecisionSupport(scores,m){
  if(m && Number(m.illum)>=70)factors.push(["warn","🌙","月明かりが強く星景に影響"]);
  if(bv>=65 && high>=20 && low<=65)factors.push(["good","🔥",btype+"は焼ける可能性あり"]);
 
- const box=$("shootFactors");
+ 
+ if(window.modelConfidence?.score<60){
+  factors.unshift(["warn","🛰️","気象モデル間の予報差が大きい"]);
+ }
+const box=$("shootFactors");
  if(box)box.innerHTML=factors.slice(0,5).map(([c,ic,tx])=>'<div class="factor '+c+'"><span class="factorIcon">'+ic+'</span><span>'+tx+'</span></div>').join("");
 }
 

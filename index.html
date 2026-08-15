@@ -26,7 +26,7 @@ details>summary{cursor:pointer;font-weight:800;font-size:18px;padding:8px 0}
 details[open]>summary{margin-bottom:8px}
 #otherPlacesContent>.card{margin:10px 0;background:#0d1627}
 
-/* v1.8.0 compact UI */
+/* v1.8.1 compact UI */
 #forecastStatusCard{padding:12px 16px}
 #forecastStatusCard h2{display:none}
 #forecastStatusBox{padding:8px 12px;display:flex;align-items:center;gap:10px;min-height:0}
@@ -36,7 +36,7 @@ details[open]>summary{margin-bottom:8px}
 #diagWrap summary{font-size:12px;font-weight:600;color:#9eabc4;padding:3px 0}
 #diagWrap .small{padding:5px 0}
 
-/* v1.8.0 compact connection details */
+/* v1.8.1 compact connection details */
 #connectionCard{padding:10px 14px}
 #connectionCard>h2{display:none}
 #connectionCard details>summary{font-size:13px;font-weight:700;color:#9eabc4}
@@ -52,7 +52,7 @@ details[open]>summary{margin-bottom:8px}
 }
 #toastMsg.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-/* v1.8.0 safe responsive UI */
+/* v1.8.1 safe responsive UI */
 .wrap{width:min(1180px,calc(100% - 32px));max-width:1180px;margin:0 auto;padding:16px 0 32px}
 .card{width:100%;box-sizing:border-box;margin:10px 0}
 .card.collapsible{padding:0;overflow:hidden}
@@ -87,7 +87,7 @@ details[open]>summary{margin-bottom:8px}
 #card-today #verdict{vertical-align:middle}
 #card-today #summary{margin:8px 0 0}
 
-/* v1.8.0 condition summary */
+/* v1.8.1 condition summary */
 .conditionGrid{
  display:grid;grid-template-columns:repeat(4,1fr);gap:10px
 }
@@ -112,7 +112,7 @@ details[open]>summary{margin-bottom:8px}
 
 #card-conditions{width:100%}
 
-/* v1.8.0 decision support */
+/* v1.8.1 decision support */
 #card-conditions{order:initial}
 .decisionSupport{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
 .supportBox{background:#0c1424;border:1px solid #263653;border-radius:14px;padding:12px}
@@ -196,7 +196,7 @@ details[open]>summary{margin-bottom:8px}
 
 <div class="decisionSupport">
  <div class="supportBox">
-  <div class="supportTitle">🌇 焼ける方向</div>
+  <div class="supportTitle">🌇 焼ける方向（日の出・日没基準）</div>
   <div class="supportMain" id="burnDirection">--</div>
   <div class="supportSub" id="burnDirectionSub">朝焼け・夕焼けの本命方向を表示</div>
  </div>
@@ -315,7 +315,7 @@ details[open]>summary{margin-bottom:8px}
 <script>
 window.addEventListener("error",e=>{const d=document.getElementById("diagCompact");if(d)d.textContent="JSエラー: "+e.message;});
 window.addEventListener("unhandledrejection",e=>{const d=document.getElementById("diagCompact");if(d)d.textContent="Promiseエラー: "+(e.reason?.message||e.reason||"unknown");});
-const APP_VERSION="v1.8.0";
+const APP_VERSION="v1.8.1";
 document.addEventListener("DOMContentLoaded",()=>{
   document.title="STAR GO "+APP_VERSION;
   const el=document.getElementById("appVersion");
@@ -873,7 +873,7 @@ async function getWeather(){
      render();setTimeout(()=>updateMultiModelConfidence(),50);
    }catch(renderError){
      console.error("core render error",renderError);
-     $("diag").textContent="表示処理エラー: "+renderError.message+"（v1.8.0）";
+     $("diag").textContent="表示処理エラー: "+renderError.message+"（v1.8.1）";
      if($("diagCompact"))$("diagCompact").textContent=$("diag").textContent;
      setForecastStatus("error","表示処理エラー","天気データ自体は取得できています。");
      return;
@@ -1085,26 +1085,54 @@ function updateDecisionSupport(scores,m){
  const w=window.weather;
  if(!w?.hourly?.time?.length || !Array.isArray(scores) || !scores.length)return;
 
- // Best burn hour; sunrise vs sunset side is inferred from score components already used by STAR GO.
- let bi=0,bv=-1,btype="夕焼け";
+ const lat=Number($("lat").value),lon=Number($("lon").value),date=$("date").value;
+
+ // Use actual astronomical sunrise/sunset times as the only valid burn windows.
+ const se=sunEventInfo(date,lat,lon);
+ const tomorrow=nextDateString(date);
+ const seTomorrow=sunEventInfo(tomorrow,lat,lon);
+
+ const sunsetTime=se?.set?.time && se.set.time!=="--" ? new Date(date+"T"+se.set.time+":00") : null;
+ const sunriseTime=seTomorrow?.rise?.time && seTomorrow.rise.time!=="--" ? new Date(tomorrow+"T"+seTomorrow.rise.time+":00") : null;
+
+ // Sunset: -45 to +45 min. Sunrise: -45 to +45 min.
+ const candidates=[];
  scores.forEach((s,i)=>{
-   const b=Number(s?.burn)||0;
-   if(b>bv){bv=b;bi=i;btype=(Number(s?.sunriseScore)||0)>(Number(s?.sunsetScore)||0)?"朝焼け":"夕焼け";}
+   const t=new Date(w.hourly.time[i]);
+   if(sunsetTime){
+     const dm=Math.abs((t-sunsetTime)/60000);
+     if(dm<=45) candidates.push({i,type:"夕焼け",score:Number(s?.sunsetScore)||0,event:sunsetTime,eventInfo:se.set});
+   }
+   if(sunriseTime){
+     const dm=Math.abs((t-sunriseTime)/60000);
+     if(dm<=45) candidates.push({i,type:"朝焼け",score:Number(s?.sunriseScore)||0,event:sunriseTime,eventInfo:seTomorrow.rise});
+   }
  });
 
- // Use actual solar azimuth calculation when available in the app.
- const dt=new Date(w.hourly.time[bi]);
- let az=NaN;
- try{
-   const sp=sunPosition(dt,Number($("lat").value),Number($("lon").value));
-   az=Number(sp?.az);
- }catch(e){}
- if(Number.isFinite(az) && Math.abs(az)<=Math.PI*2+0.1)az=((az*180/Math.PI)+180)%360;
- else if(Number.isFinite(az))az=((az%360)+360)%360;
+ let burnBest=null;
+ if(candidates.length){
+   burnBest=candidates.sort((a,b)=>b.score-a.score)[0];
+ }
 
  const bd=$("burnDirection"),bs=$("burnDirectionSub");
- if(bd)bd.textContent=(Number.isFinite(az)?compass16(az)+" "+Math.round(az)+"°":"方角計算中")+"｜"+Math.round(bv)+" / 100";
- if(bs)bs.textContent=btype+"の本命："+fmtHour(w.hourly.time[bi])+"前後";
+ if(burnBest){
+   const ev=burnBest.eventInfo;
+   const az=Number(ev?.az);
+   const dir=Number.isFinite(az)?compass16(az)+" "+Math.round(az)+"°":"--";
+   const eventLabel=burnBest.type==="夕焼け"?"日没":"日の出";
+   const eventClock=ev?.time||"--";
+
+   if(bd)bd.textContent=dir+"｜"+Math.round(burnBest.score)+" / 100";
+   if(bs){
+     const start=new Date(burnBest.event.getTime()-30*60000);
+     const finish=new Date(burnBest.event.getTime()+30*60000);
+     const fmt=d=>String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+     bs.textContent=burnBest.type+"の狙い目："+fmt(start)+"〜"+fmt(finish)+"（"+eventLabel+" "+eventClock+"）";
+   }
+ }else{
+   if(bd)bd.textContent="-- / 100";
+   if(bs)bs.textContent="日の出・日没付近の焼け判定データがありません";
+ }
 
  // Pick the best overall shooting hour and expose the raw evidence.
  let bestI=0,bestV=-1;
@@ -1143,13 +1171,16 @@ function updateDecisionSupport(scores,m){
  else if(hum>=80)factors.push(["warn","💧","湿度高め"]);
 
  if(m && Number(m.illum)>=70)factors.push(["warn","🌙","月明かりが強く星景に影響"]);
- if(bv>=65 && high>=20 && low<=65)factors.push(["good","🔥",btype+"は焼ける可能性あり"]);
 
- 
- if(window.modelConfidence?.score<60){
-  factors.unshift(["warn","🛰️","気象モデル間の予報差が大きい"]);
+ if(burnBest && burnBest.score>=65 && high>=20 && low<=65){
+   factors.push(["good","🔥",burnBest.type+"は焼ける可能性あり"]);
  }
-const box=$("shootFactors");
+
+ if(window.modelConfidence?.score<60){
+   factors.unshift(["warn","🛰️","気象モデル間の予報差が大きい"]);
+ }
+
+ const box=$("shootFactors");
  if(box)box.innerHTML=factors.slice(0,5).map(([c,ic,tx])=>'<div class="factor '+c+'"><span class="factorIcon">'+ic+'</span><span>'+tx+'</span></div>').join("");
 }
 

@@ -26,7 +26,7 @@ details>summary{cursor:pointer;font-weight:800;font-size:18px;padding:8px 0}
 details[open]>summary{margin-bottom:8px}
 #otherPlacesContent>.card{margin:10px 0;background:#0d1627}
 
-/* v1.7.1 compact UI */
+/* v1.7.2 compact UI */
 #forecastStatusCard{padding:12px 16px}
 #forecastStatusCard h2{display:none}
 #forecastStatusBox{padding:8px 12px;display:flex;align-items:center;gap:10px;min-height:0}
@@ -36,7 +36,7 @@ details[open]>summary{margin-bottom:8px}
 #diagWrap summary{font-size:12px;font-weight:600;color:#9eabc4;padding:3px 0}
 #diagWrap .small{padding:5px 0}
 
-/* v1.7.1 compact connection details */
+/* v1.7.2 compact connection details */
 #connectionCard{padding:10px 14px}
 #connectionCard>h2{display:none}
 #connectionCard details>summary{font-size:13px;font-weight:700;color:#9eabc4}
@@ -52,7 +52,7 @@ details[open]>summary{margin-bottom:8px}
 }
 #toastMsg.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-/* v1.7.1 safe responsive UI */
+/* v1.7.2 safe responsive UI */
 .wrap{width:min(1180px,calc(100% - 32px));max-width:1180px;margin:0 auto;padding:16px 0 32px}
 .card{width:100%;box-sizing:border-box;margin:10px 0}
 .card.collapsible{padding:0;overflow:hidden}
@@ -87,7 +87,7 @@ details[open]>summary{margin-bottom:8px}
 #card-today #verdict{vertical-align:middle}
 #card-today #summary{margin:8px 0 0}
 
-/* v1.7.1 condition summary */
+/* v1.7.2 condition summary */
 .conditionGrid{
  display:grid;grid-template-columns:repeat(4,1fr);gap:10px
 }
@@ -112,8 +112,8 @@ details[open]>summary{margin-bottom:8px}
 
 #card-conditions{width:100%}
 
-/* v1.7.1 decision support */
-#card-conditions{order:-10}
+/* v1.7.2 decision support */
+#card-conditions{order:initial}
 .decisionSupport{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
 .supportBox{background:#0c1424;border:1px solid #263653;border-radius:14px;padding:12px}
 .supportTitle{font-size:13px;color:#9eabc4;margin-bottom:7px;font-weight:800}
@@ -149,6 +149,51 @@ details[open]>summary{margin-bottom:8px}
 <p id="mapStatus" class="small muted">地図をタップして撮影地点にピンを立ててください。</p>
 <div class="mapActions"><button id="mapUse">📍 この場所で予報を見る</button><button id="mapClose" class="secondary">閉じる</button></div>
 </div></div>
+
+<div class="card" id="card-conditions">
+<h2>📊 撮影コンディション</h2>
+<div class="conditionGrid">
+<div class="conditionItem stars">
+<div class="conditionName">⭐ 星空</div>
+<div class="conditionValue" id="condStar">-- / 100</div>
+<div class="conditionLabel" id="condStarLabel">--</div>
+</div>
+<div class="conditionItem milky">
+<div class="conditionName">🌌 天の川</div>
+<div class="conditionValue" id="condMilky">-- / 100</div>
+<div class="conditionLabel" id="condMilkyLabel">--</div>
+</div>
+<div class="conditionItem burn">
+<div class="conditionName">🌇 焼け</div>
+<div class="conditionValue" id="condBurn">-- / 100</div>
+<div class="conditionLabel" id="condBurnLabel">--</div>
+</div>
+<div class="conditionItem total">
+<div class="conditionName">📸 総合</div>
+<div class="conditionValue" id="condTotal">-- / 100</div>
+<div class="conditionLabel" id="condTotalLabel">--</div>
+</div>
+</div>
+<p class="small muted">0〜19 厳しい / 20〜39 期待薄 / 40〜59 条件次第 / 60〜79 良好 / 80〜100 絶好</p>
+<div class="decisionSupport">
+ <div class="supportBox">
+  <div class="supportTitle">🌇 焼ける方向</div>
+  <div class="supportMain" id="burnDirection">--</div>
+  <div class="supportSub" id="burnDirectionSub">朝焼け・夕焼けの本命方向を表示</div>
+ </div>
+ <div class="supportBox">
+  <div class="supportTitle">⚠️ 撮影阻害要因・追い風</div>
+  <div class="factorList" id="shootFactors"><div class="factor">--</div></div>
+ </div>
+</div>
+<div class="evidenceGrid">
+ <div class="evidenceItem"><div class="evidenceName">☁️ 雲量</div><div class="evidenceValue" id="evCloud">--</div></div>
+ <div class="evidenceItem"><div class="evidenceName">👁 視程</div><div class="evidenceValue" id="evVisibility">--</div></div>
+ <div class="evidenceItem"><div class="evidenceName">💧 湿度</div><div class="evidenceValue" id="evHumidity">--</div></div>
+ <div class="evidenceItem"><div class="evidenceName">🌧 降水確率</div><div class="evidenceValue" id="evRain">--</div></div>
+</div>
+
+</div>
 
 <div class="card" id="forecastStatusCard">
 <div id="forecastStatusBox" class="metric statusInfo">
@@ -225,50 +270,7 @@ details[open]>summary{margin-bottom:8px}
 <div id="nearbyStatus" class="small muted"></div>
 <div id="nearbyResults"></div>
 </div>
-<div class="card" id="card-conditions">
-<h2>📊 撮影コンディション</h2>
-<div class="conditionGrid">
-<div class="conditionItem stars">
-<div class="conditionName">⭐ 星空</div>
-<div class="conditionValue" id="condStar">-- / 100</div>
-<div class="conditionLabel" id="condStarLabel">--</div>
-</div>
-<div class="conditionItem milky">
-<div class="conditionName">🌌 天の川</div>
-<div class="conditionValue" id="condMilky">-- / 100</div>
-<div class="conditionLabel" id="condMilkyLabel">--</div>
-</div>
-<div class="conditionItem burn">
-<div class="conditionName">🌇 焼け</div>
-<div class="conditionValue" id="condBurn">-- / 100</div>
-<div class="conditionLabel" id="condBurnLabel">--</div>
-</div>
-<div class="conditionItem total">
-<div class="conditionName">📸 総合</div>
-<div class="conditionValue" id="condTotal">-- / 100</div>
-<div class="conditionLabel" id="condTotalLabel">--</div>
-</div>
-</div>
-<p class="small muted">0〜19 厳しい / 20〜39 期待薄 / 40〜59 条件次第 / 60〜79 良好 / 80〜100 絶好</p>
-<div class="decisionSupport">
- <div class="supportBox">
-  <div class="supportTitle">🌇 焼ける方向</div>
-  <div class="supportMain" id="burnDirection">--</div>
-  <div class="supportSub" id="burnDirectionSub">朝焼け・夕焼けの本命方向を表示</div>
- </div>
- <div class="supportBox">
-  <div class="supportTitle">⚠️ 撮影阻害要因・追い風</div>
-  <div class="factorList" id="shootFactors"><div class="factor">--</div></div>
- </div>
-</div>
-<div class="evidenceGrid">
- <div class="evidenceItem"><div class="evidenceName">☁️ 雲量</div><div class="evidenceValue" id="evCloud">--</div></div>
- <div class="evidenceItem"><div class="evidenceName">👁 視程</div><div class="evidenceValue" id="evVisibility">--</div></div>
- <div class="evidenceItem"><div class="evidenceName">💧 湿度</div><div class="evidenceValue" id="evHumidity">--</div></div>
- <div class="evidenceItem"><div class="evidenceName">🌧 降水確率</div><div class="evidenceValue" id="evRain">--</div></div>
-</div>
 
-</div>
 <div class="card" id="card-graph">
 <h2>📈 時間別おすすめ度</h2>
 <canvas id="scoreGraph"></canvas>
@@ -294,7 +296,7 @@ details[open]>summary{margin-bottom:8px}
 <script>
 window.addEventListener("error",e=>{const d=document.getElementById("diagCompact");if(d)d.textContent="JSエラー: "+e.message;});
 window.addEventListener("unhandledrejection",e=>{const d=document.getElementById("diagCompact");if(d)d.textContent="Promiseエラー: "+(e.reason?.message||e.reason||"unknown");});
-const APP_VERSION="v1.7.1";
+const APP_VERSION="v1.7.2";
 document.addEventListener("DOMContentLoaded",()=>{
   document.title="STAR GO "+APP_VERSION;
   const el=document.getElementById("appVersion");
@@ -370,7 +372,7 @@ function makeCardCollapsible(card,defaultOpen=true,hint=""){
 }
 
 function moveConditionsNearTop(){
- const loc=document.getElementById("card-location"),cond=document.getElementById("card-conditions");
+ const loc=document.getElementById("shootingLocationCard"),cond=document.getElementById("card-conditions");
  if(loc&&cond&&loc.parentNode===cond.parentNode){
    loc.insertAdjacentElement("afterend",cond);
  }
@@ -389,7 +391,7 @@ function flattenDesktopPair(){
 
 function reorderPrimarySections(){
  flattenDesktopPair();
- const loc=document.getElementById("card-location");
+ const loc=document.getElementById("shootingLocationCard");
  const cond=document.getElementById("card-conditions");
  const astro=document.getElementById("card-astro");
  const dir=document.getElementById("card-direction");
@@ -738,7 +740,7 @@ async function getWeather(){
      render();
    }catch(renderError){
      console.error("core render error",renderError);
-     $("diag").textContent="表示処理エラー: "+renderError.message+"（v1.7.1）";
+     $("diag").textContent="表示処理エラー: "+renderError.message+"（v1.7.2）";
      if($("diagCompact"))$("diagCompact").textContent=$("diag").textContent;
      setForecastStatus("error","表示処理エラー","天気データ自体は取得できています。");
      return;

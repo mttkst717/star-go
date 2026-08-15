@@ -26,7 +26,7 @@ details>summary{cursor:pointer;font-weight:800;font-size:18px;padding:8px 0}
 details[open]>summary{margin-bottom:8px}
 #otherPlacesContent>.card{margin:10px 0;background:#0d1627}
 
-/* v1.7.0 compact UI */
+/* v1.7.1 compact UI */
 #forecastStatusCard{padding:12px 16px}
 #forecastStatusCard h2{display:none}
 #forecastStatusBox{padding:8px 12px;display:flex;align-items:center;gap:10px;min-height:0}
@@ -36,7 +36,7 @@ details[open]>summary{margin-bottom:8px}
 #diagWrap summary{font-size:12px;font-weight:600;color:#9eabc4;padding:3px 0}
 #diagWrap .small{padding:5px 0}
 
-/* v1.7.0 compact connection details */
+/* v1.7.1 compact connection details */
 #connectionCard{padding:10px 14px}
 #connectionCard>h2{display:none}
 #connectionCard details>summary{font-size:13px;font-weight:700;color:#9eabc4}
@@ -52,7 +52,7 @@ details[open]>summary{margin-bottom:8px}
 }
 #toastMsg.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-/* v1.7.0 safe responsive UI */
+/* v1.7.1 safe responsive UI */
 .wrap{width:min(1180px,calc(100% - 32px));max-width:1180px;margin:0 auto;padding:16px 0 32px}
 .card{width:100%;box-sizing:border-box;margin:10px 0}
 .card.collapsible{padding:0;overflow:hidden}
@@ -87,7 +87,7 @@ details[open]>summary{margin-bottom:8px}
 #card-today #verdict{vertical-align:middle}
 #card-today #summary{margin:8px 0 0}
 
-/* v1.7.0 condition summary */
+/* v1.7.1 condition summary */
 .conditionGrid{
  display:grid;grid-template-columns:repeat(4,1fr);gap:10px
 }
@@ -112,7 +112,7 @@ details[open]>summary{margin-bottom:8px}
 
 #card-conditions{width:100%}
 
-/* v1.7.0 decision support */
+/* v1.7.1 decision support */
 #card-conditions{order:-10}
 .decisionSupport{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
 .supportBox{background:#0c1424;border:1px solid #263653;border-radius:14px;padding:12px}
@@ -294,7 +294,7 @@ details[open]>summary{margin-bottom:8px}
 <script>
 window.addEventListener("error",e=>{const d=document.getElementById("diagCompact");if(d)d.textContent="JSエラー: "+e.message;});
 window.addEventListener("unhandledrejection",e=>{const d=document.getElementById("diagCompact");if(d)d.textContent="Promiseエラー: "+(e.reason?.message||e.reason||"unknown");});
-const APP_VERSION="v1.7.0";
+const APP_VERSION="v1.7.1";
 document.addEventListener("DOMContentLoaded",()=>{
   document.title="STAR GO "+APP_VERSION;
   const el=document.getElementById("appVersion");
@@ -376,7 +376,37 @@ function moveConditionsNearTop(){
  }
 }
 
+
+
+function flattenDesktopPair(){
+ const pair=document.querySelector(".desktopPair");
+ if(!pair||!pair.parentNode)return;
+ const parent=pair.parentNode;
+ const children=[...pair.children];
+ children.forEach(ch=>parent.insertBefore(ch,pair));
+ pair.remove();
+}
+
+function reorderPrimarySections(){
+ flattenDesktopPair();
+ const loc=document.getElementById("card-location");
+ const cond=document.getElementById("card-conditions");
+ const astro=document.getElementById("card-astro");
+ const dir=document.getElementById("card-direction");
+ const graph=document.getElementById("card-graph");
+ if(!loc||!loc.parentNode)return;
+ const parent=loc.parentNode;
+ let anchor=loc;
+ [cond,astro,dir,graph].forEach(el=>{
+   if(el&&el.parentNode===parent){
+     anchor.insertAdjacentElement("afterend",el);
+     anchor=el;
+   }
+ });
+}
+
 function initRefinedUI(){
+ reorderPrimarySections();
  moveConditionsNearTop();
  [
   ["card-location",true,"場所・日付"],["card-conditions",true,"指数まとめ"],["card-current",false,"いまの空"],["card-today",false,"旧総合表示"],
@@ -386,11 +416,6 @@ function initRefinedUI(){
   ["card-ranking",false,"時間別"],["card-best",false,"ベスト時間"]
  ].forEach(([id,op,hint])=>makeCardCollapsible(document.getElementById(id),op,hint));
 
- const astro=document.getElementById("card-astro"),dir=document.getElementById("card-direction");
- if(astro&&dir&&astro.parentNode===dir.parentNode&&!astro.parentNode.classList.contains("desktopPair")){
-  const pair=document.createElement("div");pair.className="desktopPair";
-  astro.parentNode.insertBefore(pair,astro);pair.appendChild(astro);pair.appendChild(dir);
- }
 }
 
 function setStatus(t,k="muted"){$("status").className="small "+k;$("status").textContent=t}
@@ -713,7 +738,7 @@ async function getWeather(){
      render();
    }catch(renderError){
      console.error("core render error",renderError);
-     $("diag").textContent="表示処理エラー: "+renderError.message+"（v1.7.0）";
+     $("diag").textContent="表示処理エラー: "+renderError.message+"（v1.7.1）";
      if($("diagCompact"))$("diagCompact").textContent=$("diag").textContent;
      setForecastStatus("error","表示処理エラー","天気データ自体は取得できています。");
      return;

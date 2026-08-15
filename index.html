@@ -26,7 +26,7 @@ details>summary{cursor:pointer;font-weight:800;font-size:18px;padding:8px 0}
 details[open]>summary{margin-bottom:8px}
 #otherPlacesContent>.card{margin:10px 0;background:#0d1627}
 
-/* v1.4.3 compact UI */
+/* v1.4.4 compact UI */
 #forecastStatusCard{padding:12px 16px}
 #forecastStatusCard h2{display:none}
 #forecastStatusBox{padding:8px 12px;display:flex;align-items:center;gap:10px;min-height:0}
@@ -36,7 +36,7 @@ details[open]>summary{margin-bottom:8px}
 #diagWrap summary{font-size:12px;font-weight:600;color:#9eabc4;padding:3px 0}
 #diagWrap .small{padding:5px 0}
 
-/* v1.4.3 compact connection details */
+/* v1.4.4 compact connection details */
 #connectionCard{padding:10px 14px}
 #connectionCard>h2{display:none}
 #connectionCard details>summary{font-size:13px;font-weight:700;color:#9eabc4}
@@ -170,7 +170,7 @@ details[open]>summary{margin-bottom:8px}
 <script>
 window.addEventListener("error",e=>{const d=document.getElementById("diagCompact");if(d)d.textContent="JSエラー: "+e.message;});
 window.addEventListener("unhandledrejection",e=>{const d=document.getElementById("diagCompact");if(d)d.textContent="Promiseエラー: "+(e.reason?.message||e.reason||"unknown");});
-const APP_VERSION="v1.4.3";
+const APP_VERSION="v1.4.4";
 document.addEventListener("DOMContentLoaded",()=>{
   document.title="STAR GO "+APP_VERSION;
   const el=document.getElementById("appVersion");
@@ -536,7 +536,7 @@ async function getWeather(){
      render();
    }catch(renderError){
      console.error("core render error",renderError);
-     $("diag").textContent="表示処理エラー: "+renderError.message;
+     $("diag").textContent="表示処理エラー: "+renderError.message+"（v1.4.4）";
      if($("diagCompact"))$("diagCompact").textContent=$("diag").textContent;
      setForecastStatus("error","表示処理エラー","天気データ自体は取得できています。");
      return;
@@ -634,12 +634,13 @@ function hourlyScore(i,m){
  if(!ww?.hourly || !Array.isArray(ww.hourly.time) || !ww.hourly.time[i]){
    return {star:0,milky:0,burn:0,sunsetScore:0,sunriseScore:0,cap:0,reason:["データなし"],pop:0};
  }
+ const cloudTotal=ww.hourly.cloud_cover?.[i]??100;
 const w=window.weather.hourly,c=w.cloud_cover[i]??100,lo=w.cloud_cover_low[i]??c,md=w.cloud_cover_mid[i]??c,hi=w.cloud_cover_high[i]??c,hum=w.relative_humidity_2m[i]??100,vis=(w.visibility[i]??0)/1000,pop=w.precipitation_probability[i]??0,pr=w.precipitation[i]??0,code=w.weather_code[i]??3,clear=100-(.50*c+.25*lo+.15*md+.10*hi),visibility=clamp(vis/25*100),humidity=clamp(100-Math.max(0,hum-55)*1.8);let star=.45*clear+.20*(100-m.illum*55)+.20*visibility+.15*humidity;const wc=weatherCap(code,pr,pop,c);star=Math.min(clamp(star),wc.cap);const hour=new Date(w.time[i]).getHours();
    const nightFactor=(hour>=21||hour<=4)?1:(hour>=19||hour<=6?0.45:0.08);
    const gp=galacticCenterAt(new Date(w?.hourly?.time?.[i]),Number($("lat").value),Number($("lon").value));
    const altitudeFactor=gp.alt<=0?0:gp.alt<10?.35:gp.alt<20?.70:gp.alt<=35?1:.95;
    let milky=star*(1-m.illum*.92)*nightFactor*altitudeFactor;
-   milky=Math.min(clamp(milky),wc.cap);const burn=clamp(.45*(100-Math.abs(c-35)*2.2)+.25*visibility+.30*(100-Math.abs(hum-65)*1.8));const t=new Date(w.time[i]),se=window.weather.daily?.sunset?.[0]?new Date(window.weather.daily.sunset[0]):null,sr=window.weather.daily?.sunrise?.[1]?new Date(window.weather.daily.sunrise[1]):null;const low=w?.hourly?.cloud_cover_low?.[i]??cloud,mid=w?.hourly?.cloud_cover_mid?.[i]??0,high=w?.hourly?.cloud_cover_high?.[i]??0;
+   milky=Math.min(clamp(milky),wc.cap);const burn=clamp(.45*(100-Math.abs(c-35)*2.2)+.25*visibility+.30*(100-Math.abs(hum-65)*1.8));const t=new Date(w.time[i]),se=window.weather.daily?.sunset?.[0]?new Date(window.weather.daily.sunset[0]):null,sr=window.weather.daily?.sunrise?.[1]?new Date(window.weather.daily.sunrise[1]):null;const low=w?.hourly?.cloud_cover_low?.[i]??cloudTotal,mid=w?.hourly?.cloud_cover_mid?.[i]??0,high=w?.hourly?.cloud_cover_high?.[i]??0;
    const localBurn=localBurnWeatherScore(low,mid,high,hum,vis,pop,pr)/100;
    const sunsetScore=clamp(burn*timeProximityScore(t,se,-25,20,45,55)/100),sunriseScore=clamp(burn*timeProximityScore(t,sr,-25,20,55,45)/100);return{star,milky,burn,sunsetScore,sunriseScore,cap:wc.cap,reason:wc.reason,pop}}
 

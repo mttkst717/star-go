@@ -26,7 +26,7 @@ details>summary{cursor:pointer;font-weight:800;font-size:18px;padding:8px 0}
 details[open]>summary{margin-bottom:8px}
 #otherPlacesContent>.card{margin:10px 0;background:#0d1627}
 
-/* v1.6.0 compact UI */
+/* v1.7.0 compact UI */
 #forecastStatusCard{padding:12px 16px}
 #forecastStatusCard h2{display:none}
 #forecastStatusBox{padding:8px 12px;display:flex;align-items:center;gap:10px;min-height:0}
@@ -36,7 +36,7 @@ details[open]>summary{margin-bottom:8px}
 #diagWrap summary{font-size:12px;font-weight:600;color:#9eabc4;padding:3px 0}
 #diagWrap .small{padding:5px 0}
 
-/* v1.6.0 compact connection details */
+/* v1.7.0 compact connection details */
 #connectionCard{padding:10px 14px}
 #connectionCard>h2{display:none}
 #connectionCard details>summary{font-size:13px;font-weight:700;color:#9eabc4}
@@ -52,7 +52,7 @@ details[open]>summary{margin-bottom:8px}
 }
 #toastMsg.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-/* v1.6.0 safe responsive UI */
+/* v1.7.0 safe responsive UI */
 .wrap{width:min(1180px,calc(100% - 32px));max-width:1180px;margin:0 auto;padding:16px 0 32px}
 .card{width:100%;box-sizing:border-box;margin:10px 0}
 .card.collapsible{padding:0;overflow:hidden}
@@ -87,7 +87,7 @@ details[open]>summary{margin-bottom:8px}
 #card-today #verdict{vertical-align:middle}
 #card-today #summary{margin:8px 0 0}
 
-/* v1.6.0 condition summary */
+/* v1.7.0 condition summary */
 .conditionGrid{
  display:grid;grid-template-columns:repeat(4,1fr);gap:10px
 }
@@ -111,6 +111,26 @@ details[open]>summary{margin-bottom:8px}
 #card-today .score{font-size:30px}
 
 #card-conditions{width:100%}
+
+/* v1.7.0 decision support */
+#card-conditions{order:-10}
+.decisionSupport{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.supportBox{background:#0c1424;border:1px solid #263653;border-radius:14px;padding:12px}
+.supportTitle{font-size:13px;color:#9eabc4;margin-bottom:7px;font-weight:800}
+.supportMain{font-size:18px;font-weight:900}
+.supportSub{font-size:12px;color:#9eabc4;margin-top:5px}
+.factorList{display:grid;gap:6px;margin-top:4px}
+.factor{display:flex;gap:8px;align-items:flex-start;font-size:13px}
+.factor.good{color:#bfeccc}.factor.warn{color:#ffd98a}.factor.bad{color:#ffaaaa}
+.factorIcon{width:18px;flex:0 0 18px}
+.evidenceGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:10px}
+.evidenceItem{background:#0a1220;border:1px solid #22304a;border-radius:10px;padding:8px}
+.evidenceName{font-size:11px;color:#9eabc4}
+.evidenceValue{font-size:15px;font-weight:800;margin-top:2px}
+@media(max-width:640px){
+ .decisionSupport{grid-template-columns:1fr}
+ .evidenceGrid{grid-template-columns:1fr 1fr}
+}
 </style>
 <script>(async function(){try{if("serviceWorker"in navigator){const r=await navigator.serviceWorker.getRegistrations();await Promise.all(r.map(x=>x.unregister()))}if("caches"in window){const k=await caches.keys();await Promise.all(k.map(x=>caches.delete(x)))}}catch(e){}})();</script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -230,6 +250,24 @@ details[open]>summary{margin-bottom:8px}
 </div>
 </div>
 <p class="small muted">0〜19 厳しい / 20〜39 期待薄 / 40〜59 条件次第 / 60〜79 良好 / 80〜100 絶好</p>
+<div class="decisionSupport">
+ <div class="supportBox">
+  <div class="supportTitle">🌇 焼ける方向</div>
+  <div class="supportMain" id="burnDirection">--</div>
+  <div class="supportSub" id="burnDirectionSub">朝焼け・夕焼けの本命方向を表示</div>
+ </div>
+ <div class="supportBox">
+  <div class="supportTitle">⚠️ 撮影阻害要因・追い風</div>
+  <div class="factorList" id="shootFactors"><div class="factor">--</div></div>
+ </div>
+</div>
+<div class="evidenceGrid">
+ <div class="evidenceItem"><div class="evidenceName">☁️ 雲量</div><div class="evidenceValue" id="evCloud">--</div></div>
+ <div class="evidenceItem"><div class="evidenceName">👁 視程</div><div class="evidenceValue" id="evVisibility">--</div></div>
+ <div class="evidenceItem"><div class="evidenceName">💧 湿度</div><div class="evidenceValue" id="evHumidity">--</div></div>
+ <div class="evidenceItem"><div class="evidenceName">🌧 降水確率</div><div class="evidenceValue" id="evRain">--</div></div>
+</div>
+
 </div>
 <div class="card" id="card-graph">
 <h2>📈 時間別おすすめ度</h2>
@@ -256,7 +294,7 @@ details[open]>summary{margin-bottom:8px}
 <script>
 window.addEventListener("error",e=>{const d=document.getElementById("diagCompact");if(d)d.textContent="JSエラー: "+e.message;});
 window.addEventListener("unhandledrejection",e=>{const d=document.getElementById("diagCompact");if(d)d.textContent="Promiseエラー: "+(e.reason?.message||e.reason||"unknown");});
-const APP_VERSION="v1.6.0";
+const APP_VERSION="v1.7.0";
 document.addEventListener("DOMContentLoaded",()=>{
   document.title="STAR GO "+APP_VERSION;
   const el=document.getElementById("appVersion");
@@ -330,9 +368,18 @@ function makeCardCollapsible(card,defaultOpen=true,hint=""){
   }
  });
 }
+
+function moveConditionsNearTop(){
+ const loc=document.getElementById("card-location"),cond=document.getElementById("card-conditions");
+ if(loc&&cond&&loc.parentNode===cond.parentNode){
+   loc.insertAdjacentElement("afterend",cond);
+ }
+}
+
 function initRefinedUI(){
+ moveConditionsNearTop();
  [
-  ["card-location",true,"場所・日付"],["card-conditions",true,"指数まとめ"],["card-current",false,"いまの空"],
+  ["card-location",true,"場所・日付"],["card-conditions",true,"指数まとめ"],["card-current",false,"いまの空"],["card-today",false,"旧総合表示"],
   ["card-graph",true,"メイン"],["card-astro",false,"月・天の川"],
   ["card-direction",false,"日の出・日没"],["card-stars",false,"詳細"],
   ["card-moon",false,"月齢"],["card-burn",false,"朝焼け・夕焼け"],
@@ -666,7 +713,7 @@ async function getWeather(){
      render();
    }catch(renderError){
      console.error("core render error",renderError);
-     $("diag").textContent="表示処理エラー: "+renderError.message+"（v1.6.0）";
+     $("diag").textContent="表示処理エラー: "+renderError.message+"（v1.7.0）";
      if($("diagCompact"))$("diagCompact").textContent=$("diag").textContent;
      setForecastStatus("error","表示処理エラー","天気データ自体は取得できています。");
      return;
@@ -712,7 +759,7 @@ async function refineBurnDirection(){
    const m=moon(date);
    const times=window.weather?.hourly?.time;
    if(!Array.isArray(times)||!times.length)return;
-   const scores=times.map((_,i)=>hourlyScore(i,m));
+   const scores=times.map((_,i)=>hourlyScore(i,m));updateDecisionSupport(scores,m);
    const ms=Math.max(...scores.map(x=>Number.isFinite(x.sunsetScore)?x.sunsetScore:0));
    const mr=Math.max(...scores.map(x=>Number.isFinite(x.sunriseScore)?x.sunriseScore:0));
    const sf=westVal==null?ms:clamp(ms*(.72+.28*westVal/100));
@@ -860,6 +907,85 @@ function updateConditionSummary(star,milky,burn,total){
   if(v)v.textContent=n===null?"-- / 100":n+" / 100";
   if(l)l.textContent=n===null?"--":scoreLabel(n);
  });
+}
+
+
+function compass16(deg){
+ if(!Number.isFinite(deg))return "--";
+ const names=["北","北北東","北東","東北東","東","東南東","南東","南南東","南","南南西","南西","西南西","西","西北西","北西","北北西"];
+ return names[Math.round((((deg%360)+360)%360)/22.5)%16];
+}
+function fmtHour(t){
+ if(!t)return "--";
+ const d=new Date(t);
+ return Number.isNaN(d.getTime())?String(t).slice(11,16):String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+}
+function updateDecisionSupport(scores,m){
+ const w=window.weather;
+ if(!w?.hourly?.time?.length || !Array.isArray(scores) || !scores.length)return;
+
+ // Best burn hour; sunrise vs sunset side is inferred from score components already used by STAR GO.
+ let bi=0,bv=-1,btype="夕焼け";
+ scores.forEach((s,i)=>{
+   const b=Number(s?.burn)||0;
+   if(b>bv){bv=b;bi=i;btype=(Number(s?.sunriseScore)||0)>(Number(s?.sunsetScore)||0)?"朝焼け":"夕焼け";}
+ });
+
+ // Use actual solar azimuth calculation when available in the app.
+ const dt=new Date(w.hourly.time[bi]);
+ let az=NaN;
+ try{
+   const sp=sunPosition(dt,Number($("lat").value),Number($("lon").value));
+   az=Number(sp?.az);
+ }catch(e){}
+ if(Number.isFinite(az) && Math.abs(az)<=Math.PI*2+0.1)az=((az*180/Math.PI)+180)%360;
+ else if(Number.isFinite(az))az=((az%360)+360)%360;
+
+ const bd=$("burnDirection"),bs=$("burnDirectionSub");
+ if(bd)bd.textContent=(Number.isFinite(az)?compass16(az)+" "+Math.round(az)+"°":"方角計算中")+"｜"+Math.round(bv)+" / 100";
+ if(bs)bs.textContent=btype+"の本命："+fmtHour(w.hourly.time[bi])+"前後";
+
+ // Pick the best overall shooting hour and expose the raw evidence.
+ let bestI=0,bestV=-1;
+ scores.forEach((s,i)=>{
+   const v=Math.max(Number(s?.star)||0,Number(s?.milky)||0,Number(s?.burn)||0);
+   if(v>bestV){bestV=v;bestI=i;}
+ });
+ const H=w.hourly;
+ const cloud=Number(H.cloud_cover?.[bestI]??100);
+ const vis=Number(H.visibility?.[bestI]??0);
+ const hum=Number(H.relative_humidity_2m?.[bestI]??100);
+ const pop=Number(H.precipitation_probability?.[bestI]??0);
+ const low=Number(H.cloud_cover_low?.[bestI]??cloud);
+ const high=Number(H.cloud_cover_high?.[bestI]??0);
+
+ const set=(id,text)=>{const e=$(id);if(e)e.textContent=text};
+ set("evCloud",Math.round(cloud)+"%");
+ set("evVisibility",vis>=1000?(vis/1000).toFixed(vis>=10000?0:1)+" km":Math.round(vis)+" m");
+ set("evHumidity",Math.round(hum)+"%");
+ set("evRain",Math.round(pop)+"%");
+
+ const factors=[];
+ if(pop>=50)factors.push(["bad","🌧","降水確率が高い（"+Math.round(pop)+"%）"]);
+ else if(pop>=25)factors.push(["warn","🌦","にわか雨に注意（"+Math.round(pop)+"%）"]);
+ else factors.push(["good","✓","降水リスクは低め"]);
+
+ if(cloud>=75)factors.push(["bad","☁️","雲量が多く空が隠れやすい"]);
+ else if(cloud>=45)factors.push(["warn","☁️","雲がやや多い"]);
+ else factors.push(["good","✓","雲量は少なめ"]);
+
+ if(vis<8000)factors.push(["bad","👁","視程が低く霞みやすい"]);
+ else if(vis<15000)factors.push(["warn","👁","やや霞む可能性"]);
+ else factors.push(["good","✓","視程は良好"]);
+
+ if(hum>=90)factors.push(["bad","💧","高湿度・レンズ結露に注意"]);
+ else if(hum>=80)factors.push(["warn","💧","湿度高め"]);
+
+ if(m && Number(m.illum)>=70)factors.push(["warn","🌙","月明かりが強く星景に影響"]);
+ if(bv>=65 && high>=20 && low<=65)factors.push(["good","🔥",btype+"は焼ける可能性あり"]);
+
+ const box=$("shootFactors");
+ if(box)box.innerHTML=factors.slice(0,5).map(([c,ic,tx])=>'<div class="factor '+c+'"><span class="factorIcon">'+ic+'</span><span>'+tx+'</span></div>').join("");
 }
 
 function render(){
